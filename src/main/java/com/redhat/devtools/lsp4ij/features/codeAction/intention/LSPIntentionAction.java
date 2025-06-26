@@ -10,6 +10,7 @@
  ******************************************************************************/
 package com.redhat.devtools.lsp4ij.features.codeAction.intention;
 
+import com.intellij.codeInsight.intention.preview.IntentionPreviewInfo;
 import com.intellij.openapi.editor.Caret;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
@@ -81,7 +82,7 @@ public abstract class LSPIntentionAction extends LSPLazyCodeActionIntentionActio
 
         // Create the context - empty diagnostics list since this is for intentions, not quick fixes
         CodeActionContext context = new CodeActionContext(Collections.emptyList());
-        context.setTriggerKind(CodeActionTriggerKind.Automatic);
+        context.setTriggerKind(CodeActionTriggerKind.Invoked);
 
         // Create the text document identifier with the file URI
         // The URI is required for the LSP server to identify which file we're requesting code actions for

@@ -22,6 +22,8 @@ import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Map;
+
 /**
  * LSP codeAction feature.
  */
@@ -85,6 +87,17 @@ public class LSPCodeActionFeature extends AbstractLSPDocumentFeature {
         return codeAction.getTitle();
     }
 
+    private static final Map<String, String> codeActionPrefixesToKinds = Map.of(
+        CodeActionKind.QuickFix, LanguageServerBundle.message("lsp.intention.code.action.kind.quickfix"),
+        CodeActionKind.Refactor, LanguageServerBundle.message("lsp.intention.code.action.kind.refactor"),
+        CodeActionKind.RefactorExtract, LanguageServerBundle.message("lsp.intention.code.action.kind.refactor.extract"),
+        CodeActionKind.RefactorInline, LanguageServerBundle.message("lsp.intention.code.action.kind.refactor.inline"),
+        CodeActionKind.RefactorRewrite, LanguageServerBundle.message("lsp.intention.code.action.kind.refactor.rewrite"),
+        CodeActionKind.Source, LanguageServerBundle.message("lsp.intention.code.action.kind.source"),
+        CodeActionKind.SourceFixAll, LanguageServerBundle.message("lsp.intention.code.action.kind.source.fixAll"),
+        CodeActionKind.SourceOrganizeImports, LanguageServerBundle.message("lsp.intention.code.action.kind.source.organizeImports")
+    );
+
     /**
      * Returns the IntelliJ intention action family name from the given LSP code action.
      *
@@ -95,23 +108,10 @@ public class LSPCodeActionFeature extends AbstractLSPDocumentFeature {
     public String getFamilyName(@NotNull CodeAction codeAction) {
         String kind = codeAction.getKind();
         if (StringUtils.isNotBlank(kind)) {
-            switch (kind) {
-                case CodeActionKind.QuickFix:
-                    return LanguageServerBundle.message("lsp.intention.code.action.kind.quickfix");
-                case CodeActionKind.Refactor:
-                    return LanguageServerBundle.message("lsp.intention.code.action.kind.refactor");
-                case CodeActionKind.RefactorExtract:
-                    return LanguageServerBundle.message("lsp.intention.code.action.kind.refactor.extract");
-                case CodeActionKind.RefactorInline:
-                    return LanguageServerBundle.message("lsp.intention.code.action.kind.refactor.inline");
-                case CodeActionKind.RefactorRewrite:
-                    return LanguageServerBundle.message("lsp.intention.code.action.kind.refactor.rewrite");
-                case CodeActionKind.Source:
-                    return LanguageServerBundle.message("lsp.intention.code.action.kind.source");
-                case CodeActionKind.SourceFixAll:
-                    return LanguageServerBundle.message("lsp.intention.code.action.kind.source.fixAll");
-                case CodeActionKind.SourceOrganizeImports:
-                    return LanguageServerBundle.message("lsp.intention.code.action.kind.source.organizeImports");
+
+            for (Map.Entry<String, String> entry : codeActionPrefixesToKinds.entrySet()) {
+                if (kind.startsWith(entry.getKey()))
+                    return entry.getValue();
             }
         }
         return LanguageServerBundle.message("lsp.intention.code.action.kind.empty");

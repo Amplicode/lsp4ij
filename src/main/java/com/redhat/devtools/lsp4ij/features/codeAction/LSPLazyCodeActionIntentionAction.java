@@ -14,6 +14,7 @@
 package com.redhat.devtools.lsp4ij.features.codeAction;
 
 import com.intellij.codeInsight.intention.IntentionAction;
+import com.intellij.codeInsight.intention.preview.IntentionPreviewInfo;
 import com.intellij.codeInspection.util.IntentionFamilyName;
 import com.intellij.codeInspection.util.IntentionName;
 import com.intellij.openapi.application.ApplicationManager;
@@ -193,7 +194,7 @@ public class LSPLazyCodeActionIntentionAction implements IntentionAction {
     private static LanguageServerItem getLanguageServer(@Nullable Either<CodeActionData, Boolean> action) {
         return action != null && action.isLeft() ? action.getLeft().languageServer() : null;
     }
-    
+
     private static boolean isValidCodeAction(@Nullable Either<CodeActionData, Boolean> action) {
         return action != null && action.isLeft();
     }

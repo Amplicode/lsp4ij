@@ -10,6 +10,7 @@
  ******************************************************************************/
 package com.redhat.devtools.lsp4ij.features.codeAction.intention;
 
+import com.intellij.codeInsight.intention.preview.IntentionPreviewInfo;
 import com.intellij.openapi.editor.Caret;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
@@ -58,7 +59,7 @@ public abstract class LSPIntentionAction extends LSPLazyCodeActionIntentionActio
         Caret caret = editor.getCaretModel().getPrimaryCaret();
         Range range = LSPIJUtils.toRange(caret.getSelectionRange(), document);
         CodeActionContext context = new CodeActionContext(Collections.emptyList());
-        context.setTriggerKind(CodeActionTriggerKind.Automatic);
+        context.setTriggerKind(CodeActionTriggerKind.Invoked);
         return new CodeActionParams(new TextDocumentIdentifier(), range, context);
     }
 }

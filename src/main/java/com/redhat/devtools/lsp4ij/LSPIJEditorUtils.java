@@ -182,11 +182,13 @@ public final class LSPIJEditorUtils {
     private static final Map.Entry<Character, Character> BRACES_ENTRY = Map.entry('{', '}');
     private static final Map.Entry<Character, Character> BRACKETS_ENTRY = Map.entry('[', ']');
     private static final Map.Entry<Character, Character> PARENTHESES_ENTRY = Map.entry('(', ')');
+    private static final Map.Entry<Character, Character> TRE_ENTRY = Map.entry('<', '>');
     @ApiStatus.Internal
     public static final Map<Character, Character> DEFAULT_BRACE_PAIRS = Map.ofEntries(
             BRACES_ENTRY,
             BRACKETS_ENTRY,
-            PARENTHESES_ENTRY
+            PARENTHESES_ENTRY,
+            TRE_ENTRY
     );
 
     /**

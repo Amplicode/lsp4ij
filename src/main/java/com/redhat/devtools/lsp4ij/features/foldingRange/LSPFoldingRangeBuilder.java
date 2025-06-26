@@ -187,6 +187,7 @@ public class LSPFoldingRangeBuilder extends CustomFoldingBuilder {
             int end = getEndOffset(foldingRange, document);
             // The end offsets can fall a bit short, so look for the closing brace character
             if (closeBraceChar != null) {
+                end--;
                 while ((end < documentLength) && (documentChars.charAt(end) != closeBraceChar)) {
                     end++;
                 }

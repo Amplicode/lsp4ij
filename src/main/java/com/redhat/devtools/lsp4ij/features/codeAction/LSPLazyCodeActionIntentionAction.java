@@ -14,7 +14,6 @@
 package com.redhat.devtools.lsp4ij.features.codeAction;
 
 import com.intellij.codeInsight.intention.IntentionAction;
-import com.intellij.codeInsight.intention.preview.IntentionPreviewInfo;
 import com.intellij.codeInspection.util.IntentionFamilyName;
 import com.intellij.codeInspection.util.IntentionName;
 import com.intellij.openapi.application.ApplicationManager;
@@ -65,13 +64,13 @@ public class LSPLazyCodeActionIntentionAction implements IntentionAction {
     @Override
     public @IntentionName @NotNull String getText() {
         loadCodeActionIfNeeded();
-        return title != null? title : "";
+        return title != null ? title : "";
     }
 
     @Override
     public @NotNull @IntentionFamilyName String getFamilyName() {
         loadCodeActionIfNeeded();
-        return familyName != null ? familyName :  LanguageServerBundle.message("lsp.intention.code.action.kind.empty");
+        return familyName != null ? familyName : LanguageServerBundle.message("lsp.intention.code.action.kind.empty");
     }
 
     @Override
@@ -145,9 +144,9 @@ public class LSPLazyCodeActionIntentionAction implements IntentionAction {
     }
 
     private static void executeCommand(@NotNull Command command,
-                                @NotNull PsiFile file,
-                                @NotNull Editor editor,
-                                @NotNull LanguageServerItem languageServer) {
+                                       @NotNull PsiFile file,
+                                       @NotNull Editor editor,
+                                       @NotNull LanguageServerItem languageServer) {
         CommandExecutor.executeCommand(new LSPCommandContext(command, file, LSPCommandContext.ExecutedBy.CODE_ACTION, editor, languageServer));
     }
 

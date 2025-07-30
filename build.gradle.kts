@@ -28,7 +28,13 @@ group = providers.gradleProperty("pluginGroup").get()
 
 version = kotlin.run {
     val buildVersion = providers.gradleProperty("buildVersion")
-    return@run if (buildVersion.isPresent) buildVersion.get() else "${pluginVersion}.${snapshotVersion ?: "SNAPSHOT"}"
+    if (buildVersion.isPresent) {
+        return@run when {
+            buildVersion.get().startsWith("openide.") -> buildVersion.get().substring(8)
+            else -> buildVersion.get()
+        }
+    }
+    return@run "${pluginVersion}.${snapshotVersion ?: "SNAPSHOT"}"
 }
 
 val lsp4jVersion = prop("lsp4jVersion")

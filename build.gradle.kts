@@ -21,8 +21,15 @@ plugins {
     jacoco // Code coverage
 }
 
-group = prop("pluginGroup")
-version = prop("pluginVersion")
+val snapshotVersion = providers.gradleProperty("snapshotVersion").orNull
+val pluginVersion = providers.gradleProperty("pluginVersion").get()
+
+group = providers.gradleProperty("pluginGroup").get()
+
+version = kotlin.run {
+    val buildVersion = providers.gradleProperty("buildVersion")
+    return@run if (buildVersion.isPresent) buildVersion.get() else "${pluginVersion}.${snapshotVersion ?: "SNAPSHOT"}"
+}
 
 val lsp4jVersion = prop("lsp4jVersion")
 val lsp4jDebugVersion = prop("lsp4jDebugVersion")
@@ -135,14 +142,19 @@ intellijPlatform {
     }
 
     signing {
-        certificateChain = environment("CERTIFICATE_CHAIN")
-        privateKey = environment("PRIVATE_KEY")
-        password = environment("PRIVATE_KEY_PASSWORD")
+        if (providers.gradleProperty("useSign").isPresent) {
+            certificateChain = providers.environmentVariable("CERTIFICATE_CHAIN")
+            privateKey = providers.environmentVariable("PRIVATE_KEY")
+            password = providers.environmentVariable("PRIVATE_KEY_PASSWORD")
+        }
     }
 
     publishing {
-        token = environment("PUBLISH_TOKEN")
-        channels = properties("channel").map { listOf(it) }
+        val publishToken = providers.gradleProperty("publishToken")
+        if (publishToken.isPresent) {
+            token = publishToken.get()
+            host = "https://plugins.openide.ru"
+        }
     }
 
     pluginVerification {

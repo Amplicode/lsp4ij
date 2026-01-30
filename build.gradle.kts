@@ -291,7 +291,81 @@ tasks {
         }
     }
 
-    check {
-        dependsOn(jacocoTestReport)
+    val checkNativeLibraries by registering {
+        group = "verification"
+        description = "Checks plugin dependencies for native libraries (.dll, .so, .dylib)"
+        notCompatibleWithConfigurationCache("Accesses resolved configurations at task execution time")
+
+        doLast {
+            val nativeExtensions = listOf(".dll", ".so", ".dylib", ".jnilib")
+            val jetbrainsGroups = listOf("org.jetbrains", "com.jetbrains", "com.intellij")
+
+            val runtimeConfig = configurations.getByName("runtimeClasspath")
+            val findings = mutableMapOf<String, MutableList<String>>()
+
+            runtimeConfig.resolvedConfiguration.resolvedArtifacts.forEach { artifact ->
+                val moduleId = artifact.moduleVersion.id
+                val group = moduleId.group.lowercase()
+
+                if (jetbrainsGroups.any { group.startsWith(it.lowercase()) }) {
+                    return@forEach
+                }
+
+                val file = artifact.file
+                if (file.extension != "jar") {
+                    return@forEach
+                }
+
+                val nativeFiles = mutableListOf<String>()
+                try {
+                    project.zipTree(file).visit {
+                        if (!isDirectory) {
+                            val path = relativePath.pathString
+                            val lowercasePath = path.lowercase()
+
+                            val hasNativeExtension = nativeExtensions.any {
+                                lowercasePath.endsWith(it)
+                            }
+
+                            val isVersionedSo = lowercasePath.matches(Regex(".*\\.so\\.\\d+.*"))
+
+                            val inNativeDir = lowercasePath.contains("/native/") ||
+                                    lowercasePath.contains("/natives/")
+
+                            if (hasNativeExtension || isVersionedSo || inNativeDir) {
+                                nativeFiles.add(path)
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    logger.warn("Failed to inspect JAR ${file.name}: ${e.message}")
+                }
+
+                if (nativeFiles.isNotEmpty()) {
+                    val depKey = "${moduleId.group}:${moduleId.name}:${moduleId.version}"
+                    findings[depKey] = nativeFiles
+                }
+            }
+
+            if (findings.isNotEmpty()) {
+                logger.error("==========================================")
+                logger.error("Native libraries found in dependencies:")
+                logger.error("==========================================")
+                findings.forEach { (dep, files) ->
+                    logger.error("===> $dep")
+                    files.forEach { file ->
+                        logger.error("     └─ $file")
+                    }
+                }
+                logger.error("==========================================")
+                logger.error("Total: ${findings.size} dependencies with native libraries")
+
+                throw GradleException(
+                    "Build failed: Native libraries detected in ${findings.size} dependencies"
+                )
+            } else {
+                logger.lifecycle("✓ No native libraries found in plugin dependencies")
+            }
+        }
     }
 }

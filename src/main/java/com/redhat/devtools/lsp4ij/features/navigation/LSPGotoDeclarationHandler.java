@@ -75,7 +75,14 @@ public class LSPGotoDeclarationHandler implements GotoDeclarationHandler {
             if (semanticTokensFileViewProvider.isReference(offset)) {
                 PsiReference reference = semanticTokensFileViewProvider.findReferenceAt(offset);
                 PsiElement target = reference != null ? reference.resolve() : null;
-                return target != null ? new PsiElement[]{target} : PsiElement.EMPTY_ARRAY;
+                if (target != null) {
+                    if (isSameElement(sourceElement, target)) {
+                        return PsiElement.EMPTY_ARRAY;
+                    } else {
+                        return new PsiElement[]{target};
+                    }
+                }
+                return PsiElement.EMPTY_ARRAY;
             }
             // If it's definitely a declaration, just return an empty set of targets
             else if (semanticTokensFileViewProvider.isDeclaration(offset)) {
@@ -108,6 +115,20 @@ public class LSPGotoDeclarationHandler implements GotoDeclarationHandler {
         }
 
         return targets;
+    }
+
+    private boolean isSameElement(PsiElement sourcePsiElement, PsiElement targetPsiElement) {
+        VirtualFile targetVirtualFile = LSPIJUtils.getFile(targetPsiElement);
+        VirtualFile sourceVirtualFile = LSPIJUtils.getFile(sourcePsiElement);
+
+        if (!Objects.equals(targetVirtualFile, sourceVirtualFile)) {
+            return false;
+        }
+
+        TextRange targetRange = targetPsiElement.getTextRange();
+        TextRange currentElementRange = sourcePsiElement.getTextRange();
+
+        return currentElementRange.intersects(targetRange);
     }
 
     /**

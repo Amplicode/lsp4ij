@@ -129,6 +129,13 @@ public class LSPSemanticTokensSingleRootFileViewProvider
         return helper.isType(offset);
     }
 
+    //OPEN IDE BEGIN
+    @Override
+    public @NotNull ThreeState isFunction(int offset) {
+        return helper.isFunction(offset);
+    }
+    //OPEN IDE END
+
     @Override
     public boolean isWhitespace(int offset) {
         return helper.isWhitespace(offset);

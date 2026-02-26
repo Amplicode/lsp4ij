@@ -80,6 +80,11 @@ public class LanguageServerSuggestionEditorNotificationProvider implements Edito
             return null;
         }
 
+        // If the file is already supported by a registered language server, don't suggest installing one
+        if (LanguageServersRegistry.getInstance().isFileSupported(file)) {
+            return null;
+        }
+
         // Collect language server templates which match the file.
         List<LanguageServerTemplate> matchedTemplates = new ArrayList<>();
         Set<String> patterns = new HashSet<>();

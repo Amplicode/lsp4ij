@@ -64,6 +64,16 @@ public class LSPReferencesFeature extends AbstractLSPDocumentFeature {
     }
 
     /**
+     * Returns true if the declaration of the current symbol should be included in the references result.
+     *
+     * @param file the file
+     * @return true if the declaration should be included; false to show only usages
+     */
+    public boolean isIncludeDeclaration(@NotNull PsiFile file) {
+        return true;
+    }
+
+    /**
      * Determines whether or not client-side external references should be processed for LSP4IJ symbols in the
      * specified file.
      *

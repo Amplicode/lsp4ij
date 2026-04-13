@@ -84,6 +84,8 @@ public class LSPReferenceSupport extends AbstractLSPDocumentFeatureSupport<LSPRe
                                                                      @NotNull CancellationSupport cancellationSupport) {
         // Update textDocument Uri with custom file Uri if needed
         updateTextDocumentUri(params.getTextDocument(), file, languageServer);
+        boolean includeDeclaration = languageServer.getClientFeatures().getReferencesFeature().isIncludeDeclaration(file);
+        params.getContext().setIncludeDeclaration(includeDeclaration);
         return cancellationSupport.execute(languageServer
                         .getTextDocumentService()
                         .references(params), languageServer, LSPRequestConstants.TEXT_DOCUMENT_REFERENCES)

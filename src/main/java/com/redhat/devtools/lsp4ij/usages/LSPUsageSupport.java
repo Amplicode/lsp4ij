@@ -160,6 +160,7 @@ public class LSPUsageSupport extends AbstractLSPDocumentFeatureSupport<LSPUsageS
                         if (clientFeature.getReferencesFeature().isEnabled(file)
                                 && clientFeature.getReferencesFeature().isSupported(file)) {
                             updateTextDocumentUri(referenceParams.getTextDocument(), file, ls);
+                            referenceParams.getContext().setIncludeDeclaration(clientFeature.getReferencesFeature().isIncludeDeclaration(file));
                             allFutures.add(
                                     cancellationSupport.execute(ls
                                                     .getTextDocumentService()

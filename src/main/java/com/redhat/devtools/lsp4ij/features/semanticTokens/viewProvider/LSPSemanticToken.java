@@ -209,6 +209,20 @@ class LSPSemanticToken {
         return ThreeState.UNSURE;
     }
 
+    //OPEN IDE BEGIN
+    @NotNull
+    ThreeState isFunction() {
+        if (tokenType != null) {
+            if (SemanticTokenTypes.Function.equals(tokenType)) {
+                return ThreeState.YES;
+            } else if (ALL_TOKEN_TYPES.contains(tokenType)) {
+                return ThreeState.NO;
+            }
+        }
+        return ThreeState.UNSURE;
+    }
+    //OPEN IDE END
+
     @NotNull
     List<String> getTokenModifiers() {
         return tokenModifiers;

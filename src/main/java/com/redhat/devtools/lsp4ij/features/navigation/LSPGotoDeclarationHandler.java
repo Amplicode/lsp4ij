@@ -77,11 +77,13 @@ public class LSPGotoDeclarationHandler implements GotoDeclarationHandler {
                 PsiReference reference = semanticTokensFileViewProvider.findReferenceAt(offset);
                 PsiElement target = reference != null ? reference.resolve() : null;
                 if (target != null) {
+                    //OPEN IDE BEGIN
                     if (isSameElement(sourceElement, target)) {
                         return PsiElement.EMPTY_ARRAY;
                     } else {
                         return new PsiElement[]{target};
                     }
+                    //OPEN IDE END
                 }
                 return PsiElement.EMPTY_ARRAY;
             }
@@ -126,6 +128,7 @@ public class LSPGotoDeclarationHandler implements GotoDeclarationHandler {
         return targets;
     }
 
+    //OPEN IDE BEGIN
     private boolean isSameElement(PsiElement sourcePsiElement, PsiElement targetPsiElement) {
         VirtualFile targetVirtualFile = LSPIJUtils.getFile(targetPsiElement);
         VirtualFile sourceVirtualFile = LSPIJUtils.getFile(sourcePsiElement);
@@ -139,6 +142,7 @@ public class LSPGotoDeclarationHandler implements GotoDeclarationHandler {
 
         return currentElementRange.intersects(targetRange);
     }
+    //OPEN IDE END
 
     /**
      * Uses LSP to resolve the target elements for the reference at the specified offset in the file containing the

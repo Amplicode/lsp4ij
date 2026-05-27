@@ -127,6 +127,15 @@ public class LSPSemanticTokensFileViewProviderHelper implements LSPSemanticToken
         return (semanticToken != null) ? semanticToken.isType() : ThreeState.UNSURE;
     }
 
+    //OPEN IDE BEGIN
+    @Override
+    @NotNull
+    public ThreeState isFunction(int offset) {
+        LSPSemanticToken semanticToken = getSemanticToken(offset);
+        return (semanticToken != null) ? semanticToken.isFunction() : ThreeState.UNSURE;
+    }
+    //OPEN IDE END
+
     @Override
     public boolean isWhitespace(int offset) {
         PsiFile file = getFile();

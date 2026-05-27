@@ -40,6 +40,26 @@ public class LSPImplementationFeature extends AbstractLSPDocumentFeature {
         return getImplementationCapabilityRegistry().isImplementationSupported(file);
     }
 
+    //OPEN IDE BEGIN
+    /**
+     * Returns true if the language server supports textDocument/implementation requests for functions,
+     * and false otherwise.
+     * <p>
+     * By default, this method returns true. Language server implementations can override this method
+     * to return false if the server does not support or throws errors when requesting implementations
+     * for standalone functions (as opposed to methods).
+     * <p>
+     * For example, the Go language server throws an error when requesting implementations for functions
+     * because only methods (not standalone functions) can implement interfaces in Go.
+     *
+     * @param file the file.
+     * @return true if the language server supports implementation requests for functions; false otherwise.
+     */
+    public boolean isImplementationForFunctionSupported(@NotNull PsiFile file) {
+        return true;
+    }
+    //OPEN IDE END
+
     public ImplementationCapabilityRegistry getImplementationCapabilityRegistry() {
         if (implementationCapabilityRegistry == null) {
             initImplementationCapabilityRegistry();

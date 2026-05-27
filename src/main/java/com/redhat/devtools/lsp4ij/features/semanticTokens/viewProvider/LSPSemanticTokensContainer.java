@@ -124,6 +124,19 @@ interface LSPSemanticTokensContainer {
     @NotNull
     ThreeState isType(int offset);
 
+    //OPEN IDE BEGIN
+    /**
+     * Whether or not the semantic token at the offset is for a function (not a method).
+     *
+     * @param offset the offset
+     * @return {@link ThreeState#YES} if the semantic token at the offset is conclusively for a function;
+     * {@link ThreeState#NO} if the semantic token at the offset is conclusively <b>not</b> for a function;
+     * otherwise {@link ThreeState#UNSURE}
+     */
+    @NotNull
+    ThreeState isFunction(int offset);
+    //OPEN IDE END
+
     /**
      * Whether or not the offset is for whitespace.
      *

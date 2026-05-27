@@ -77,6 +77,7 @@ public class LSPUsageSupport extends AbstractLSPDocumentFeatureSupport<LSPUsageS
                     // Assume we need to collect everything
                     boolean collectDefinitions = true;
                     boolean collectTypeDefinitions = true;
+                    boolean collectFunctionImplementations = true;
 
                     // If we can determine the type of element being searched, see if we can/should search for less
                     Position position = params.position();
@@ -94,6 +95,15 @@ public class LSPUsageSupport extends AbstractLSPDocumentFeatureSupport<LSPUsageS
                             else if (isType == ThreeState.NO) {
                                 collectTypeDefinitions = false;
                             }
+
+                            //OPEN IDE BEGIN
+                            // Don't collect implementations for functions (only methods can have implementations)
+                            // This prevents errors from language servers like Go that throw errors for functions
+                            ThreeState isFunction = semanticTokensFileViewProvider.isFunction(offset);
+                            if (isFunction == ThreeState.YES) {
+                                collectFunctionImplementations = false;
+                            }
+                            //OPEN IDE END
                         }
                     }
 
@@ -161,13 +171,27 @@ public class LSPUsageSupport extends AbstractLSPDocumentFeatureSupport<LSPUsageS
                         // Collect implementations
                         if (clientFeature.getImplementationFeature().isEnabled(file)
                                 && clientFeature.getImplementationFeature().isSupported(file)) {
-                            updateTextDocumentUri(implementationParams.getTextDocument(), file, ls);
-                            allFutures.add(
-                                    cancellationSupport.execute(ls
-                                                    .getTextDocumentService()
-                                                    .implementation(implementationParams), ls, LSPRequestConstants.TEXT_DOCUMENT_IMPLEMENTATION)
-                                            .handle(reportUsages(ls, project, LSPUsagePsiElement.UsageKind.implementations))
-                            );
+                            //OPEN IDE BEGIN
+                            if (collectFunctionImplementations) {
+                                if (clientFeature.getImplementationFeature().isImplementationForFunctionSupported(file)) {
+                                    updateTextDocumentUri(implementationParams.getTextDocument(), file, ls);
+                                    allFutures.add(
+                                            cancellationSupport.execute(ls
+                                                            .getTextDocumentService()
+                                                            .implementation(implementationParams), ls, LSPRequestConstants.TEXT_DOCUMENT_IMPLEMENTATION)
+                                                    .handle(reportUsages(ls, project, LSPUsagePsiElement.UsageKind.implementations))
+                                    );
+                                }
+                            } else {
+                                updateTextDocumentUri(implementationParams.getTextDocument(), file, ls);
+                                allFutures.add(
+                                        cancellationSupport.execute(ls
+                                                        .getTextDocumentService()
+                                                        .implementation(implementationParams), ls, LSPRequestConstants.TEXT_DOCUMENT_IMPLEMENTATION)
+                                                .handle(reportUsages(ls, project, LSPUsagePsiElement.UsageKind.implementations))
+                                );
+                            }
+                            //OPEN IDE END
                         }
 
                     }

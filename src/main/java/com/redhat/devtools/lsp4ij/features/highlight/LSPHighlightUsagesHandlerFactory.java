@@ -17,7 +17,9 @@ import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.progress.ProgressManager;
+import com.intellij.openapi.progress.util.ProgressIndicatorUtils;
 import com.intellij.openapi.util.TextRange;
+import com.intellij.openapi.util.registry.Registry;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiFile;
 import com.redhat.devtools.lsp4ij.LSPFileSupport;
@@ -29,6 +31,7 @@ import org.eclipse.lsp4j.DocumentHighlightKind;
 import org.eclipse.lsp4j.TextDocumentIdentifier;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,19 +81,41 @@ public class LSPHighlightUsagesHandlerFactory implements HighlightUsagesHandlerF
         var params = new LSPDocumentHighlightParams(new TextDocumentIdentifier(), LSPIJUtils.toPosition(offset, document), offset);
         LSPHighlightSupport highlightSupport = LSPFileSupport.getSupport(psiFile).getHighlightSupport();
         CompletableFuture<List<DocumentHighlight>> highlightFuture = highlightSupport.getHighlights(params);
-        try {
-            waitUntilDone(highlightFuture, psiFile);
-        } catch (ProcessCanceledException e) {//Since 2024.2 ProcessCanceledException extends CancellationException so we can't use multicatch to keep backward compatibility
-            //TODO delete block when minimum required version is 2024.2
-            highlightSupport.cancel();
-            return Collections.emptyList();
-        } catch (CancellationException e) {
-            // cancel the LSP requests textDocument/documentHighlight
-            highlightSupport.cancel();
-            return Collections.emptyList();
-        } catch (ExecutionException e) {
-            LOGGER.error("Error while consuming LSP 'textDocument/documentHighlight' request", e);
-            return Collections.emptyList();
+        if (Registry.is("lsp4ij.performance.optimizations.enabled")) {
+            final long modificationStampBefore = psiFile.getModificationStamp();
+            try {
+                // Wait for gopls while cooperating with IntelliJ's read/write lock protocol.
+                // If a write action needs priority the progress indicator is cancelled, PCE is
+                // thrown here, the read lock is released immediately, and IntelliJ reschedules
+                // this background highlighting pass once the write action completes.
+                ProgressIndicatorUtils.awaitWithCheckCanceled(highlightFuture);
+            } catch (ProcessCanceledException e) {
+                // Write action requested priority — don't cancel the LSP future; the cached
+                // result will be reused when the pass is rescheduled.
+                throw e;
+            } catch (CancellationException e) {
+                highlightSupport.cancel();
+                return Collections.emptyList();
+            }
+            if (psiFile.getModificationStamp() != modificationStampBefore) {
+                // File was edited while waiting — discard stale results.
+                highlightSupport.cancel();
+                return Collections.emptyList();
+            }
+        } else {
+            try {
+                waitUntilDone(highlightFuture, psiFile);
+            } catch (ProcessCanceledException e) {//Since 2024.2 ProcessCanceledException extends CancellationException so we can't use multicatch to keep backward compatibility
+                //TODO delete block when minimum required version is 2024.2
+                highlightSupport.cancel();
+                return Collections.emptyList();
+            } catch (CancellationException e) {
+                highlightSupport.cancel();
+                return Collections.emptyList();
+            } catch (ExecutionException e) {
+                LOGGER.error("Error while consuming LSP 'textDocument/documentHighlight' request", e);
+                return Collections.emptyList();
+            }
         }
 
         if (isDoneNormally(highlightFuture)) {

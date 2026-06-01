@@ -369,6 +369,9 @@
                 serviceImplementation="com.redhat.devtools.lsp4ij.installation.download.MavenArtifactFetcherManager"/>
         <applicationService
                 serviceImplementation="com.redhat.devtools.lsp4ij.installation.definition.ServerInstallerManager"/>
+        <registryKey key="lsp4ij.performance.optimizations.enabled"
+                     description="Enable LSP4IJ performance optimizations: document symbol model caching, lock-free BFS traversal, and cooperative highlight awaiting. Disable if the optimizations cause unexpected behavior."
+                     defaultValue="true"/>
     </extensions>
 
     <!-- LSP extension points -->

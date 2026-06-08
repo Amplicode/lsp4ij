@@ -111,10 +111,7 @@ public class LSPWorkspaceImplementationsSearch extends QueryExecutorBase<PsiElem
 
         if (isDoneNormally(implementationsFuture)) {
             List<LocationData> implementations = implementationsFuture.getNow(null);
-            if (ContainerUtil.isEmpty(implementations)) {
-                // No implementations found
-                LSP4IJUiUtils.showErrorHint(file, CodeInsightBundle.message("goto.implementation.notFound"));
-            } else {
+            if (!ContainerUtil.isEmpty(implementations)) {
                 // textDocument/implementations has been collected correctly
                 for (LocationData implementation : implementations) {
                     if (!consumer.process(LSPPsiElementFactory.toPsiElement(implementation.location(), implementation.languageServer().getClientFeatures(), project))) {

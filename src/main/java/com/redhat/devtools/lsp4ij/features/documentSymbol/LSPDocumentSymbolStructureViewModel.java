@@ -18,15 +18,21 @@ import com.intellij.ide.structureView.StructureViewModelBase;
 import com.intellij.ide.structureView.StructureViewTreeElement;
 import com.intellij.ide.structureView.impl.common.PsiTreeElementBase;
 import com.intellij.ide.util.treeView.smartTree.Filter;
+import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.progress.ProcessCanceledException;
+import com.intellij.openapi.util.TextRange;
+import com.intellij.openapi.util.registry.Registry;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.util.ArrayUtil;
 import com.redhat.devtools.lsp4ij.LSPFileSupport;
+import com.redhat.devtools.lsp4ij.LSPIJUtils;
 import com.redhat.devtools.lsp4ij.client.indexing.ProjectIndexingManager;
 import com.redhat.devtools.lsp4ij.features.documentSymbol.filter.*;
+import org.eclipse.lsp4j.DocumentSymbol;
 import org.eclipse.lsp4j.DocumentSymbolParams;
+import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.TextDocumentIdentifier;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -111,12 +117,19 @@ public class LSPDocumentSymbolStructureViewModel extends StructureViewModelBase 
 
     static class LSPFileStructureViewElement extends PsiTreeElementBase<PsiFile> {
 
+        @Nullable
+        private volatile Collection<StructureViewTreeElement> cachedChildren;
+
         public LSPFileStructureViewElement(@NotNull PsiFile psiFile) {
             super(psiFile);
         }
 
         @Override
         public @NotNull Collection<StructureViewTreeElement> getChildrenBase() {
+            if (Registry.is("lsp4ij.performance.optimizations.enabled")) {
+                Collection<StructureViewTreeElement> cached = cachedChildren;
+                if (cached != null) return cached;
+            }
             PsiFile file = getElement();
             return file != null ? collectElements(file) : Collections.emptyList();
         }
@@ -150,13 +163,21 @@ public class LSPDocumentSymbolStructureViewModel extends StructureViewModelBase 
             if (isDoneNormally(documentSymbolFuture)) {
                 var documentSymbols = documentSymbolFuture.getNow(null);
                 if (documentSymbols == null) {
+                    if (Registry.is("lsp4ij.performance.optimizations.enabled")) {
+                        cachedChildren = Collections.emptyList();
+                    }
                     return Collections.emptyList();
                 }
-                return documentSymbols.stream()
+                Collection<StructureViewTreeElement> result = documentSymbols.stream()
                         .map(LSPDocumentSymbolStructureViewModel::getStructureViewTreeElement)
                         .filter(Objects::nonNull)
                         .toList();
+                if (Registry.is("lsp4ij.performance.optimizations.enabled")) {
+                    cachedChildren = result;
+                }
+                return result;
             }
+            // Future not yet done — don't cache so the next call retries
             return Collections.emptyList();
         }
 
@@ -181,12 +202,52 @@ public class LSPDocumentSymbolStructureViewModel extends StructureViewModelBase 
 
     public static class LSPDocumentSymbolViewElement extends PsiTreeElementBase<DocumentSymbolData> {
 
+        @Nullable
+        private volatile Collection<StructureViewTreeElement> cachedChildren;
+
+        // Stored directly to avoid PSI-anchor read lock during BFS traversal in getContainingDocumentSymbolDatas
+        private final @NotNull DocumentSymbol documentSymbolDirect;
+
+        // Cached on first BFS pass; safe because the model itself is invalidated on document modification stamp change
+        @Nullable
+        private volatile TextRange cachedTextRange;
+        private volatile boolean textRangeCached = false;
+
         public LSPDocumentSymbolViewElement(DocumentSymbolData documentSymbolData) {
             super(documentSymbolData);
+            this.documentSymbolDirect = documentSymbolData.getDocumentSymbol();
+        }
+
+        /**
+         * Returns the underlying LSP {@link DocumentSymbol} without acquiring a read lock.
+         * Use this instead of {@code getElement().getDocumentSymbol()} in performance-sensitive paths.
+         */
+        public @NotNull DocumentSymbol getDocumentSymbolDirect() {
+            return documentSymbolDirect;
+        }
+
+        /**
+         * Returns the {@link TextRange} for this symbol, cached after the first computation.
+         * Safe to cache because the parent model is invalidated whenever the document modification stamp changes.
+         */
+        public @Nullable TextRange getTextRangeDirect(@NotNull Document document, int docLength) {
+            if (textRangeCached) return cachedTextRange;
+            Range range = documentSymbolDirect.getRange();
+            TextRange result = range != null ? LSPIJUtils.toTextRange(range, document, docLength) : null;
+            cachedTextRange = result;
+            textRangeCached = true;
+            return result;
         }
 
         @Override
         public @NotNull Collection<StructureViewTreeElement> getChildrenBase() {
+            if (Registry.is("lsp4ij.performance.optimizations.enabled")) {
+                Collection<StructureViewTreeElement> cached = cachedChildren;
+                if (cached != null) return cached;
+                Collection<StructureViewTreeElement> result = collectElements(getElement());
+                cachedChildren = result;
+                return result;
+            }
             return collectElements(getElement());
         }
 

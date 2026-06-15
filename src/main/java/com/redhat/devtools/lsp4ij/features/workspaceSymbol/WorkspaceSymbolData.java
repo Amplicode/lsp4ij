@@ -51,6 +51,7 @@ public class WorkspaceSymbolData extends LightElement implements NavigationItem,
     private @Nullable PsiFile psiFile;
     private @Nullable String locationString;
     private @Nullable TextRange textRange;
+    private boolean filterBySearchScope = true;
 
 
     public WorkspaceSymbolData(String name,
@@ -157,6 +158,14 @@ public class WorkspaceSymbolData extends LightElement implements NavigationItem,
 
     public @Nullable SymbolKind getSymbolKind() {
         return symbolKind;
+    }
+
+    public boolean isFilterBySearchScope() {
+        return filterBySearchScope;
+    }
+
+    public void setFilterBySearchScope(boolean filterBySearchScope) {
+        this.filterBySearchScope = filterBySearchScope;
     }
 
     @Override

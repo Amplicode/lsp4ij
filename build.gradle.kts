@@ -204,6 +204,9 @@ intellijPlatform {
             }
         }
     }
+
+    // Don't need this since we don't provide any custom settings
+    buildSearchableOptions.set(false)
 }
 
 idea {

@@ -54,6 +54,7 @@ val ideaVersionInt = when {
 // Configure project's dependencies
 repositories {
     mavenLocal()
+    maven("https://cache-redirector.jetbrains.com/repo1.maven.org/maven2")
     mavenCentral()
 
     // IntelliJ Platform Gradle Plugin Repositories Extension - read more: https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin-repositories-extension.html

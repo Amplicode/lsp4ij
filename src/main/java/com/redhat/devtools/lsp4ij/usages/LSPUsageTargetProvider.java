@@ -81,7 +81,10 @@ public class LSPUsageTargetProvider implements UsageTargetProvider {
         }
         int offset = editor.getCaretModel().getOffset();
         PsiElement element = file.findElementAt(offset);
-        if (!isUsageSupportedByLanguageServer(element)) {
+        // For structureless files (e.g., TextMate/plain text backed by LSP semantic tokens),
+        // findElementAt may return null when no semantic token starts at the exact caret offset.
+        // Fall back to checking the file itself for LSP support in that case.
+        if (!isUsageSupportedByLanguageServer(element != null ? element : file)) {
             // No language server provides usage support for this element
             return null;
         }

@@ -43,13 +43,18 @@ public class LSPTargetElementEvaluator extends TargetElementEvaluatorEx2 {
             return null;
         }
 
-        // See if the view provider can provide an element
+        // See if the view provider can provide a specific token element
         LSPSemanticTokensFileViewProvider semanticTokensFileViewProvider = LSPSemanticTokensFileViewProvider.getInstance(file);
         if (semanticTokensFileViewProvider != null) {
-            return semanticTokensFileViewProvider.findElementAt(offset);
+            PsiElement element = semanticTokensFileViewProvider.findElementAt(offset);
+            // Only return the element if it's a specific token, not the whole-file fallback
+            // returned when semantic tokens haven't loaded yet (TextMate files have no PSI structure)
+            if (element != null && !element.getTextRange().equals(file.getTextRange())) {
+                return element;
+            }
         }
 
-        // Nope. Try to find the word at the caret and return a fake PSI element for it
+        // Try to find the word at the caret and return a fake PSI element for it
         TextRange targetTextRange = LSPIJUtils.getWordRangeAt(editor.getDocument(), file, offset);
         return targetTextRange != null ? new LSPPsiElement(file, targetTextRange) : null;
     }

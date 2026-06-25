@@ -332,6 +332,9 @@
     </extensions>
 
     <extensions defaultExtensionNs="com.intellij">
+        <registryKey key="lsp4ij.dap.hideDeemphasizedFrames"
+                     defaultValue="true"
+                     description="Hide de-emphasized DAP stack frames (e.g. Node.js internals / skipFiles) from the Frames view"/>
         <applicationService
                 serviceImplementation="com.redhat.devtools.lsp4ij.installation.download.GitHubAssetFetcherManager"/>
         <applicationService

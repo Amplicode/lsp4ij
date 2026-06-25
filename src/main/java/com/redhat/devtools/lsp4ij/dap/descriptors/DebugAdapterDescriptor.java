@@ -18,6 +18,7 @@ import com.intellij.execution.process.ProcessHandler;
 import com.intellij.execution.process.ProcessHandlerFactory;
 import com.intellij.execution.process.ProcessTerminatedListener;
 import com.intellij.execution.runners.ExecutionEnvironment;
+import com.intellij.execution.ui.ConsoleView;
 import com.intellij.openapi.fileTypes.FileType;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Key;
@@ -43,12 +44,15 @@ import com.redhat.devtools.lsp4ij.internal.StringUtils;
 import com.redhat.devtools.lsp4ij.settings.ServerTrace;
 import org.eclipse.lsp4j.debug.InitializeRequestArguments;
 import org.eclipse.lsp4j.debug.InitializeRequestArgumentsPathFormat;
+import org.eclipse.lsp4j.debug.RunInTerminalRequestArguments;
+import org.eclipse.lsp4j.debug.RunInTerminalResponse;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import static com.redhat.devtools.lsp4ij.server.definition.launching.CommandUtils.createCommandLine;
 
@@ -84,6 +88,41 @@ public abstract class DebugAdapterDescriptor implements DebuggableFile {
      * @throws ExecutionException
      */
     public abstract ProcessHandler startServer() throws ExecutionException;
+
+    /**
+     * Optionally provides the console for this debug session, used by
+     * {@link com.redhat.devtools.lsp4ij.dap.configurations.DAPCommandLineState#createConsole}
+     * instead of the default DAP text console. Lets a descriptor host a custom console in the debug
+     * tab — e.g. an interactive evaluation REPL for a browser session. Return {@code null} to keep
+     * the default behavior.
+     *
+     * @param project the project.
+     * @return the session console, or {@code null} to use the default.
+     */
+    @Nullable
+    public ConsoleView createSessionConsole(@NotNull Project project) {
+        return null;
+    }
+
+    /**
+     * Optionally fulfils a DAP {@code runInTerminal} reverse-request itself, instead of the default
+     * integrated/external terminal handling ({@link com.redhat.devtools.lsp4ij.dap.runInTerminal.RunInTerminalManager}).
+     * <p>
+     * Lets a descriptor run the requested command in its own PTY and surface it inside the debug
+     * session UI (e.g. via {@link DAPDebugProcess#getRunnerLayoutUi()}) — giving an interactive
+     * (stdin + ANSI) console in the debug tab while the adapter's bootloader still auto-attaches the
+     * spawned child processes. Return {@code null} to keep the default behavior.
+     *
+     * @param args   the {@code runInTerminal} arguments (argv, cwd, env, kind).
+     * @param client the DAP client that issued the request.
+     * @return a future completing with the {@link RunInTerminalResponse} (process id), or
+     * {@code null} to fall back to the default terminal services.
+     */
+    @Nullable
+    public CompletableFuture<RunInTerminalResponse> runInTerminal(@NotNull RunInTerminalRequestArguments args,
+                                                                  @NotNull DAPClient client) {
+        return null;
+    }
 
     /**
      * Start the Debug Adapter server with the given command line.

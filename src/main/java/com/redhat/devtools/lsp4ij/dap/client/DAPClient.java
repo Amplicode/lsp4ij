@@ -712,6 +712,11 @@ public class DAPClient implements IDebugProtocolClient, Disposable {
         return debugProcess.getServerDescriptor();
     }
 
+    @NotNull
+    public DAPDebugProcess getDebugProcess() {
+        return debugProcess;
+    }
+
     @Nullable
     public DisassemblyFile getDisassemblyFile() {
         return debugProcess.getDisassemblyFile();

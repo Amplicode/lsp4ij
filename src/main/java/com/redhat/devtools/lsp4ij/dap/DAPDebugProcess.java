@@ -96,6 +96,9 @@ public class DAPDebugProcess extends XDebugProcess implements Disposable {
     private Status status;
     private Supplier<TransportStreams> streamsSupplier;
     private DAPClient parentClient;
+    // Captured when the debug tab UI is built, so a descriptor can add tabs (e.g. an interactive
+    // terminal for a runInTerminal request) to the running session.
+    private @Nullable RunnerLayoutUi runnerLayoutUi;
 
     public DAPDebugProcess(@NotNull DAPCommandLineState dapState,
                            @NotNull XDebugSession session,
@@ -449,6 +452,10 @@ public class DAPDebugProcess extends XDebugProcess implements Disposable {
 
             @Override
             public void registerAdditionalContent(@NotNull RunnerLayoutUi ui) {
+                // Expose the session UI so a descriptor can add tabs later (e.g. an interactive
+                // terminal fulfilling a runInTerminal request).
+                DAPDebugProcess.this.runnerLayoutUi = ui;
+
                 // Register "Exception Breakpoints" panel
                 registerBreakpointsPanel(ui);
 
@@ -512,6 +519,15 @@ public class DAPDebugProcess extends XDebugProcess implements Disposable {
 
     public @NotNull String getConfigName() {
         return dapState.getEnvironment().getRunProfile().getName();
+    }
+
+    /**
+     * The debug tab's layout UI, available once the session content has been built. Lets a
+     * descriptor add tabs to the running session (e.g. an interactive terminal for a
+     * {@code runInTerminal} request). Null before the UI is built.
+     */
+    public @Nullable RunnerLayoutUi getRunnerLayoutUi() {
+        return runnerLayoutUi;
     }
 
     public @NotNull Project getProject() {

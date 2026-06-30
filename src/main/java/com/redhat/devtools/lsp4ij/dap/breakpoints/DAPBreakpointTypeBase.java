@@ -51,6 +51,22 @@ public abstract class DAPBreakpointTypeBase<P extends XBreakpointProperties<?>> 
         return new DAPDebuggerEditorsProvider(fileType, null);
     }
 
+    /**
+     * Use the short (file name + line) description for the breakpoint balloon header instead of the
+     * full path-and-line text.
+     * <p>
+     * The lightweight breakpoint popup ({@code XLightBreakpointPropertiesPanel}) puts this text in a
+     * non-shrinking bold {@code JBLabel}. When the file path is long, that label's minimum width
+     * exceeds the popup width, so the {@code GridLayoutManager} pushes the right-hand controls
+     * ("Restore" link, "Done" button) outside the balloon body and they get clipped. Returning the
+     * short text keeps the header's minimum width small so the balloon always lays out within its
+     * bounds (the full path is still shown in the Breakpoints dialog).
+     */
+    @Override
+    public @NotNull @Nls String getGeneralDescription(@NotNull XLineBreakpoint<P> breakpoint) {
+        return getShortText(breakpoint);
+    }
+
     @Override
     public boolean canPutAt(@NotNull VirtualFile file,
                             int line,

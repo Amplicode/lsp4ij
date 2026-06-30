@@ -17,8 +17,6 @@ import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiManager;
 import com.intellij.psi.SingleRootFileViewProvider;
 import com.intellij.testFramework.LightVirtualFile;
-import com.intellij.xdebugger.XDebugSession;
-import com.intellij.xdebugger.XDebuggerManager;
 import com.redhat.devtools.lsp4ij.dap.DAPDebugProcess;
 import com.redhat.devtools.lsp4ij.dap.client.DAPStackFrame;
 import org.jetbrains.annotations.NotNull;
@@ -58,16 +56,6 @@ public class DAPExpressionCodeFragment extends PsiFileBase {
     }
 
     public @Nullable DAPStackFrame getCurrentDapStackFrame() {
-        if (debugProcess != null) {
-            return debugProcess.getCurrentDapStackFrame();
-        }
-        // No debug process is bound when this fragment backs a breakpoint "Condition" /
-        // "Evaluate and log" editor (DAPBreakpointTypeBase passes null). Fall back to the project's
-        // currently active DAP session so completion works while the program is suspended.
-        XDebugSession session = XDebuggerManager.getInstance(getProject()).getCurrentSession();
-        if (session != null && session.getDebugProcess() instanceof DAPDebugProcess dapDebugProcess) {
-            return dapDebugProcess.getCurrentDapStackFrame();
-        }
-        return null;
+        return debugProcess != null ? debugProcess.getCurrentDapStackFrame() : null;
     }
 }

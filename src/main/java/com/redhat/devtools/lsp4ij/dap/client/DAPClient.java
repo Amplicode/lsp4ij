@@ -23,6 +23,7 @@ import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.LightweightHint;
 import com.intellij.xdebugger.XDebugSession;
+import com.intellij.xdebugger.XExpression;
 import com.intellij.xdebugger.breakpoints.XBreakpoint;
 import com.intellij.xdebugger.frame.XSuspendContext;
 import com.redhat.devtools.lsp4ij.LSPIJUtils;
@@ -413,11 +414,53 @@ public class DAPClient implements IDebugProtocolClient, Disposable {
                                             }
                                         }
                                     } else {
-                                        session.breakpointReached(breakpoint, null, context);
+                                        XExpression logExpression = breakpoint.getLogExpressionObject();
+                                        String logExpressionText = logExpression != null ? logExpression.getExpression() : null;
+                                        if (logExpressionText != null && !logExpressionText.isBlank()) {
+                                            // "Evaluate and log": evaluate the expression in the current (top) frame,
+                                            // then let the platform print its value (and handle suspend/resume).
+                                            final XSuspendContext suspendContext = context;
+                                            final XBreakpoint<?> logBreakpoint = breakpoint;
+                                            evaluate(logExpressionText, stackFrame.getId(), EvaluateArgumentsContext.WATCH)
+                                                    .handle((response, error) -> {
+                                                        String value = response != null ? response.getResult() : null;
+                                                        doBreakpointReached(session, logBreakpoint, value, suspendContext, threadId);
+                                                        return null;
+                                                    });
+                                        } else {
+                                            doBreakpointReached(session, breakpoint, null, context, threadId);
+                                        }
                                     }
                                 }
                             });
                 });
+    }
+
+    /**
+     * Notifies the platform that the given breakpoint has been reached and, when the breakpoint does
+     * not suspend (suspend policy {@code NONE}, e.g. a logging breakpoint), resumes the DAP server.
+     * <p>
+     * {@link XDebugSession#breakpointReached} prints the configured logging output ("Breakpoint hit"
+     * message, stack trace and the {@code evaluatedLogExpression} value) and returns whether the
+     * session actually suspended. Returning {@code false} means the suspend policy is {@code NONE}:
+     * the IDE did not suspend, but the DAP server did stop on the breakpoint, so it must be resumed
+     * to keep running and hit the breakpoint again (otherwise it would fire only once per session).
+     *
+     * @param session                the debug session.
+     * @param breakpoint             the reached breakpoint.
+     * @param evaluatedLogExpression the evaluated "Evaluate and log" value, or {@code null}.
+     * @param context                the suspend context.
+     * @param threadId               the stopped thread id (used to resume).
+     */
+    private void doBreakpointReached(@NotNull XDebugSession session,
+                                     @NotNull XBreakpoint<?> breakpoint,
+                                     @Nullable String evaluatedLogExpression,
+                                     @NotNull XSuspendContext context,
+                                     int threadId) {
+        boolean suspended = session.breakpointReached(breakpoint, evaluatedLogExpression, context);
+        if (!suspended) {
+            continue_(threadId);
+        }
     }
 
     static void showErrorHint(@NotNull Editor editor, @NotNull String text, int offset) {

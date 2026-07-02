@@ -110,8 +110,13 @@ public class LSPDiagnosticUtils {
             var clientFeatures = ls.getClientFeatures();
             URI fileUri = FileUriSupport.getFileUri(file, clientFeatures);
             OpenedDocument openedDocument = ls.getOpenedDocument(fileUri);
-            if (openedDocument != null && openedDocument.hasErrors()) {
-                return true;
+            if (openedDocument != null) {
+                if (openedDocument.hasErrors()) {
+                    return true;
+                }
+                // If we have opened document, but it has no errors, just ignore this document,
+                // do not check closed document (because we can have stale closed document
+                // with incorrect 'hasErrors' state)
             } else {
                 ClosedDocument closedDocument = ls.getClosedDocument(fileUri, false);
                 if (closedDocument != null && closedDocument.hasErrors()) {

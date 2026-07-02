@@ -1234,7 +1234,7 @@ public class LanguageServerWrapper implements Disposable {
         }
         return fileOperationsManager.canWillCreateFiles(uri, file.isDirectory());
     }
-    
+
     /**
      * Returns true if the given file support the 'workspace/didCreateFiles' and false otherwise.
      *
@@ -1268,7 +1268,7 @@ public class LanguageServerWrapper implements Disposable {
         }
         return fileOperationsManager.canWillDeleteFiles(uri, file.isDirectory());
     }
-    
+
     /**
      * Returns true if the given file support the 'workspace/didDeleteFiles' and false otherwise.
      *
@@ -1392,10 +1392,15 @@ public class LanguageServerWrapper implements Disposable {
             openedOrClosedDocument.updateDiagnostics(identifier, diagnostics);
         }
 
-        if ((hasErrors != openedOrClosedDocument.hasErrors()) && clientFeatures.getDiagnosticFeature().canReportProblem(file)) {
-            // Report problem in the Project View if the opened/closed document
-            // has at least one diagnosis with a severity of error
-            LSPDiagnosticUtils.reportProblem(file, openedOrClosedDocument, getProject());
+        if (clientFeatures.getDiagnosticFeature().canReportProblem(file)) {
+            // For open files, we should always update problem reporting, because when opening file,
+            // we create new document, which can have incorrect 'hasErrors' state,
+            // so after fixing error 'hasErrors' does not change
+            if (isOpen || hasErrors != openedOrClosedDocument.hasErrors()) {
+                // Report problem in the Project View if the opened/closed document
+                // has at least one diagnosis with a severity of error
+                LSPDiagnosticUtils.reportProblem(file, openedOrClosedDocument, getProject());
+            }
         }
     }
 

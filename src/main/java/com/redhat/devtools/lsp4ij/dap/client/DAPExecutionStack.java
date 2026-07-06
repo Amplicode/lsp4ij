@@ -107,13 +107,9 @@ public class DAPExecutionStack extends XExecutionStack {
 
     /**
      * Returns false for frames whose source is de-emphasized (e.g. Node.js internals or files
-     * matched by {@code skipFiles}), so they are hidden from the Frames view. Controlled by the
-     * {@code lsp4ij.dap.hideDeemphasizedFrames} registry key.
+     * matched by {@code skipFiles}), so they are hidden from the Frames view.
      */
     private static boolean isVisibleFrame(@NotNull StackFrame frame) {
-        if (!Registry.is("lsp4ij.dap.hideDeemphasizedFrames", true)) {
-            return true;
-        }
         Source source = frame.getSource();
         return source == null || source.getPresentationHint() != SourcePresentationHint.DEEMPHASIZE;
     }

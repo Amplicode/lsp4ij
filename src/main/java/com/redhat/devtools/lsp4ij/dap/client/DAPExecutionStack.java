@@ -14,7 +14,10 @@ import com.intellij.openapi.util.NlsContexts;
 import com.intellij.util.containers.ContainerUtil;
 import com.intellij.xdebugger.frame.XExecutionStack;
 import com.intellij.xdebugger.frame.XStackFrame;
+import com.intellij.openapi.util.registry.Registry;
 import com.redhat.devtools.lsp4ij.internal.StringUtils;
+import org.eclipse.lsp4j.debug.Source;
+import org.eclipse.lsp4j.debug.SourcePresentationHint;
 import org.eclipse.lsp4j.debug.StackFrame;
 import org.eclipse.lsp4j.debug.StackTraceArguments;
 import org.eclipse.lsp4j.debug.Thread;
@@ -88,8 +91,26 @@ public class DAPExecutionStack extends XExecutionStack {
     }
     
     private @NotNull List<DAPStackFrame> toDAPStackFrames(@NotNull StackFrame[] stackFrames) {
-        return Arrays.stream(stackFrames)
+        List<DAPStackFrame> frames = Arrays.stream(stackFrames)
+                .filter(DAPExecutionStack::isVisibleFrame)
                 .map(stackFrame -> new DAPStackFrame(client, stackFrame))
                 .toList();
+        if (frames.isEmpty() && stackFrames.length > 0) {
+            // Everything was filtered out (e.g. paused entirely in skipped code) — show all
+            // frames rather than an empty stack.
+            return Arrays.stream(stackFrames)
+                    .map(stackFrame -> new DAPStackFrame(client, stackFrame))
+                    .toList();
+        }
+        return frames;
+    }
+
+    /**
+     * Returns false for frames whose source is de-emphasized (e.g. Node.js internals or files
+     * matched by {@code skipFiles}), so they are hidden from the Frames view.
+     */
+    private static boolean isVisibleFrame(@NotNull StackFrame frame) {
+        Source source = frame.getSource();
+        return source == null || source.getPresentationHint() != SourcePresentationHint.DEEMPHASIZE;
     }
 }

@@ -62,6 +62,12 @@ public class RunInTerminalManager {
      */
     public CompletableFuture<RunInTerminalResponse> runInTerminal(@NotNull RunInTerminalRequestArguments args,
                                                                   @NotNull DAPClient client) {
+        // Let the descriptor fulfil it (e.g. run the command in an interactive PTY inside the
+        // debug tab); fall back to the integrated/external terminal services otherwise.
+        var custom = client.getServerDescriptor().runInTerminal(args, client);
+        if (custom != null) {
+            return custom;
+        }
         if (args.getKind() == RunInTerminalRequestArgumentsKind.INTEGRATED) {
             if (runInIntegratedTerminalService.isApplicable()) {
                 return runInIntegratedTerminalService.runInTerminal(args, client);

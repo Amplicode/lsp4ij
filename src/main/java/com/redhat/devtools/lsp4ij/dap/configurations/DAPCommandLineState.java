@@ -11,11 +11,13 @@
 package com.redhat.devtools.lsp4ij.dap.configurations;
 
 import com.intellij.execution.ExecutionException;
+import com.intellij.execution.Executor;
 import com.intellij.execution.configurations.CommandLineState;
 import com.intellij.execution.configurations.RunConfigurationOptions;
 import com.intellij.execution.process.NopProcessHandler;
 import com.intellij.execution.process.ProcessHandler;
 import com.intellij.execution.runners.ExecutionEnvironment;
+import com.intellij.execution.ui.ConsoleView;
 import com.intellij.openapi.fileTypes.FileType;
 import com.redhat.devtools.lsp4ij.dap.DAPServerReadyTracker;
 import com.redhat.devtools.lsp4ij.dap.DebugMode;
@@ -62,6 +64,15 @@ public class DAPCommandLineState extends CommandLineState implements CommandLine
         }
         new DAPServerReadyTracker(config, debugMode, processHandler);
         return processHandler;
+    }
+
+    @Override
+    protected @Nullable ConsoleView createConsole(@NotNull Executor executor) throws ExecutionException {
+        ConsoleView console = serverDescriptor.createSessionConsole(getEnvironment().getProject());
+        if (console != null) {
+            return console;
+        }
+        return super.createConsole(executor);
     }
 
     @Nullable

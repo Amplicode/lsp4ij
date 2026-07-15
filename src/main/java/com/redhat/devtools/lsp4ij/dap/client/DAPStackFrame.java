@@ -62,6 +62,13 @@ public class DAPStackFrame extends XStackFrame {
 
     @Override
     public void customizePresentation(@NotNull ColoredTextContainer component) {
+        // Frames with a DAP presentationHint of "label" are separators, not real frames: they carry no
+        // source (e.g. vscode-js-debug's async-boundary markers "await" / "Immediate"). Render the name
+        // as a subtle label instead of appending "<invalid frame>".
+        if (stackFrame.getPresentationHint() == StackFramePresentationHint.LABEL) {
+            component.append(stackFrame.getName(), SimpleTextAttributes.GRAYED_ITALIC_ATTRIBUTES);
+            return;
+        }
         component.append(stackFrame.getName(), SimpleTextAttributes.REGULAR_BOLD_ATTRIBUTES);
         int line = stackFrame.getLine();
         if (line > 0) {

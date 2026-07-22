@@ -14,7 +14,6 @@ package com.redhat.devtools.lsp4ij.features.semanticTokens.viewProvider;
 import com.intellij.lang.Language;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiElement;
-import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiManager;
 import com.intellij.psi.PsiReference;
 import org.jetbrains.annotations.NotNull;
@@ -61,41 +60,29 @@ final class LSPSemanticTokensStructurelessFileViewProvider extends LSPSemanticTo
         return (semanticToken != null && !semanticToken.isFileLevel()) ? semanticToken.getElement() : null;
     }
 
-    /**
-     * Filters out whole-file elements returned by super.findElementAt() for structureless files.
-     * <p>
-     * TextMate uses an {@code EmptyLexer} and a trivial parser, so its PSI tree consists of a single
-     * leaf element spanning the entire file. Returning that element as the "element at offset" would
-     * cause callers (e.g., {@code UsagePreviewPanel.getNameElementTextRange}) to treat the whole file
-     * as a single named element and highlight everything. Return {@code null} instead so callers fall
-     * back to their own range computation (e.g., the usage element's own text range).
-     */
-    @Nullable
-    private PsiElement filterStructurelessSuperElement(@Nullable PsiElement superElement) {
-        if (superElement == null) return null;
-        PsiFile psiFile = getPsi(getBaseLanguage());
-        if (psiFile != null && superElement.getTextRange().equals(psiFile.getTextRange())) {
-            return null;
-        }
-        return superElement;
-    }
+    // NOTE: findElementAt() must NOT return null for structureless (TextMate) files when there is no
+    // specific semantic-token element under the offset — it has to fall back to super.findElementAt()
+    // (the whole-file leaf). Returning null here breaks every caller that resolves the element under the
+    // caret: hover, completion and go-to-definition all stop working on .ts/.tsx/.vue. The whole-file
+    // highlighting seen in find-usages must be fixed in the usage-specific code path (see
+    // LSPTargetElementEvaluator / LSPUsageTargetProvider), not by nulling the shared findElementAt().
 
     @Override
     public PsiElement findElementAt(int offset) {
         PsiElement element = getSemanticTokenElement(offset);
-        return element != null ? element : filterStructurelessSuperElement(super.findElementAt(offset));
+        return element != null ? element : super.findElementAt(offset);
     }
 
     @Override
     public PsiElement findElementAt(int offset, @NotNull Class<? extends Language> lang) {
         PsiElement element = getSemanticTokenElement(offset);
-        return element != null ? element : filterStructurelessSuperElement(super.findElementAt(offset, lang));
+        return element != null ? element : super.findElementAt(offset, lang);
     }
 
     @Override
     public PsiElement findElementAt(int offset, @NotNull Language language) {
         PsiElement element = getSemanticTokenElement(offset);
-        return element != null ? element : filterStructurelessSuperElement(super.findElementAt(offset, language));
+        return element != null ? element : super.findElementAt(offset, language);
     }
 
     @Override

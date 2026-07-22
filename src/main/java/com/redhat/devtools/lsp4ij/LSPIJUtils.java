@@ -885,6 +885,11 @@ public class LSPIJUtils {
             }
         }
 
+        if (offset < 0) {
+            // No word at a negative offset; also avoids charAt(-1) in getRightOffsetOfPart
+            // (offset can be -1 here for an empty document via the clamp above).
+            return null;
+        }
         int start = getLeftOffsetOfPart(document, offset);
         int end = getRightOffsetOfPart(document, offset);
         return (start < end) ? new TextRange(start, end) : null;

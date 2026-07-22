@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
@@ -59,7 +60,11 @@ public class LanguageServiceAccessor implements Disposable {
 
     private final Project project;
     private final SimpleModificationTracker modificationTracker = new SimpleModificationTracker();
-    private final Set<LanguageServerWrapper> startedServers = new HashSet<>();
+    // Thread-safe set: readers (hasAny, processLanguageServers, getStartedServers) iterate it without
+    // locking, so a plain HashSet would throw ConcurrentModificationException when a writer mutates it
+    // concurrently. newKeySet() gives weakly-consistent iteration; writers still synchronize on it to
+    // keep their check-then-add/remove operations atomic.
+    private final Set<LanguageServerWrapper> startedServers = ConcurrentHashMap.newKeySet();
     private final LanguageServerDefinitionListener serverDefinitionListener = new LanguageServerDefinitionListener() {
 
         @Override

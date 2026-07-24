@@ -24,6 +24,10 @@ import com.intellij.codeInsight.template.TemplateManager;
 import com.intellij.codeInsight.template.impl.Variable;
 import com.intellij.model.Pointer;
 import com.intellij.model.Symbol;
+import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.application.WriteAction;
+import com.intellij.openapi.editor.Caret;
+import com.intellij.openapi.editor.CaretModel;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.editor.EditorModificationUtil;
@@ -131,8 +135,22 @@ public class LSPCompletionProposal extends LookupElement implements Pointer<LSPC
             updateInsertTextForTemplateProcessing(template.getTemplateText());
         }
 
-        // Apply all text edits
-        apply(context.getDocument(), context.getOffset(CompletionInitializationContext.SELECTION_END_OFFSET));
+        Document document = context.getDocument();
+        int offset = context.getOffset(CompletionInitializationContext.SELECTION_END_OFFSET);
+
+        // Capture (before applying) the data required to replicate this completion on additional carets.
+        // Must be computed before apply() mutates the document, since it relies on the prefix text under the caret.
+        MultiCaretInsertion multiCaretInsertion = prepareMultiCaretInsertion(document, template, offset);
+
+        // Apply all text edits (primary caret + additional text edits such as auto-imports)
+        apply(document, offset);
+
+        // Replicate the plain completion text on the remaining carets (multi-caret editing).
+        // Additional text edits (e.g. auto-imports) are intentionally not replicated: they are file-global
+        // and were already applied once by apply() above.
+        if (multiCaretInsertion != null) {
+            multiCaretInsertion.apply(document);
+        }
 
         // Just move to the first tab stop if there's a single invocation argument with no default value
         if (shouldMoveToFirstTabStop(template)) {
@@ -157,6 +175,117 @@ public class LSPCompletionProposal extends LookupElement implements Pointer<LSPC
             AutoPopupController popupController = AutoPopupController.getInstance(context.getProject());
             if (popupController != null) {
                 popupController.autoPopupParameterInfo(editor, null);
+            }
+        }
+    }
+
+    /**
+     * Prepares the replication of this completion on the additional (non-primary) carets when the editor
+     * has multiple carets, mirroring the behavior of IntelliJ's native multi-caret completion.
+     *
+     * <p>
+     * Only plain-text completions are replicated. Interactive snippets (templates with tab stops or
+     * placeholders) are skipped since they rely on a single-caret {@link Template}. A non-null {@code template}
+     * alone is NOT a reliable signal: gopls marks even plain-text items (e.g. "float64") as
+     * {@link InsertTextFormat#Snippet}, so only genuinely interactive templates
+     * ({@link #shouldStartTemplate} / {@link #shouldMoveToFirstTabStop}) are excluded. The replication is
+     * limited to the main insert text; additional text edits (auto-imports, etc.) are file-global and are
+     * applied only once by {@link #apply}.
+     * </p>
+     *
+     * @param document the document (read before {@link #apply} mutates it).
+     * @param template the snippet template if the completion is a snippet, {@code null} otherwise.
+     * @param offset   the primary caret offset where the completion is being applied.
+     * @return the data required to replicate the completion, or {@code null} if replication must not happen.
+     */
+    private @Nullable MultiCaretInsertion prepareMultiCaretInsertion(@NotNull Document document,
+                                                                     @Nullable Template template,
+                                                                     int offset) {
+        if (template != null && (shouldStartTemplate(template) || shouldMoveToFirstTabStop(template))) {
+            // Real snippets (with tab stops / placeholders) are inherently single-caret, don't replicate.
+            // Note: gopls marks even plain-text items (e.g. "float64") as InsertTextFormat.Snippet, so a
+            // non-null template alone is NOT a reliable signal; only an interactive template must be excluded.
+            return null;
+        }
+        if (!completionFeature.isMultipleCaretsSupported(file)) {
+            return null;
+        }
+        CaretModel caretModel = editor.getCaretModel();
+        if (caretModel.getCaretCount() < 2) {
+            return null;
+        }
+        if (prefixStartOffset < 0 || offset > document.getTextLength() || offset < prefixStartOffset) {
+            return null;
+        }
+        String insertText = getInsertText();
+        if (insertText == null) {
+            return null;
+        }
+        // The prefix consumed on the left of the primary caret (e.g. "fmt.Prin|" -> "Prin"), used to
+        // recognize carets sharing the same prefix and to compute the range each of them must replace.
+        String prefixText = document.getText(new TextRange(prefixStartOffset, offset));
+        Caret primaryCaret = caretModel.getPrimaryCaret();
+        List<Caret> additionalCarets = new ArrayList<>();
+        for (Caret caret : caretModel.getAllCarets()) {
+            if (caret != primaryCaret) {
+                additionalCarets.add(caret);
+            }
+        }
+        if (additionalCarets.isEmpty()) {
+            return null;
+        }
+        return new MultiCaretInsertion(additionalCarets, prefixText, insertText);
+    }
+
+    /**
+     * Holds the data required to replicate a plain-text completion on additional carets and applies it.
+     */
+    private static final class MultiCaretInsertion {
+
+        private final List<Caret> additionalCarets;
+        private final String prefixText;
+        private final String insertText;
+
+        private MultiCaretInsertion(@NotNull List<Caret> additionalCarets,
+                                    @NotNull String prefixText,
+                                    @NotNull String insertText) {
+            this.additionalCarets = additionalCarets;
+            this.prefixText = prefixText;
+            this.insertText = insertText;
+        }
+
+        /**
+         * Replicates the completion on each additional caret that shares the same prefix as the primary caret.
+         * Carets whose prefix differs are left untouched to avoid corrupting unrelated text.
+         */
+        private void apply(@NotNull Document document) {
+            if (ApplicationManager.getApplication().isWriteAccessAllowed()) {
+                doApply(document);
+            } else {
+                WriteAction.run(() -> doApply(document));
+            }
+        }
+
+        private void doApply(@NotNull Document document) {
+            int prefixLength = prefixText.length();
+            // Edit from the highest offset to the lowest so that not-yet-processed (lower) offsets stay valid.
+            List<Caret> carets = new ArrayList<>(additionalCarets);
+            carets.sort(Comparator.comparingInt(Caret::getOffset).reversed());
+            for (Caret caret : carets) {
+                if (!caret.isValid()) {
+                    continue;
+                }
+                int caretOffset = caret.getOffset();
+                int start = caretOffset - prefixLength;
+                if (start < 0 || caretOffset > document.getTextLength()) {
+                    continue;
+                }
+                // Only replicate where the caret shares the exact same prefix as the primary caret.
+                if (!prefixText.equals(document.getText(new TextRange(start, caretOffset)))) {
+                    continue;
+                }
+                document.replaceString(start, caretOffset, insertText);
+                caret.moveToOffset(start + insertText.length());
             }
         }
     }

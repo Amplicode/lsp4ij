@@ -317,4 +317,22 @@ public class LSPCompletionFeature extends AbstractLSPDocumentFeature {
         // Default to enabled
         return true;
     }
+
+    /**
+     * Whether a plain-text completion should be replicated on all carets when the editor has multiple carets.
+     *
+     * <p>
+     * When enabled (the default), accepting a completion with several carets inserts the completion under each
+     * caret that shares the same prefix as the primary caret, mirroring IntelliJ's native multi-caret completion.
+     * Genuinely interactive snippets (templates with tab stops or placeholders) are never replicated regardless
+     * of this flag, since they rely on a single-caret template.
+     * </p>
+     *
+     * @param file the file
+     * @return true if the completion should be replicated across additional carets; otherwise false
+     */
+    public boolean isMultipleCaretsSupported(@NotNull PsiFile file) {
+        // Default to enabled
+        return true;
+    }
 }

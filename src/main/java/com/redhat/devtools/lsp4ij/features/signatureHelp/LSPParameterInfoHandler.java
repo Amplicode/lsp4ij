@@ -144,7 +144,8 @@ public class LSPParameterInfoHandler implements ParameterInfoHandler<LSPSignatur
     public void updateUI(SignatureInformation signatureInformation, @NotNull ParameterInfoUIContext context) {
         int currentParameter = context.getCurrentParameterIndex();
         List<ParameterInformation> parameters = signatureInformation.getParameters();
-        int numParams = parameters.size();
+        // parameters is optional per the LSP spec; gopls may omit it (e.g. functions without params)
+        int numParams = parameters != null ? parameters.size() : 0;
 
         StringBuilder html = new StringBuilder(numParams * 8);
         int highlightStartOffset = -1;

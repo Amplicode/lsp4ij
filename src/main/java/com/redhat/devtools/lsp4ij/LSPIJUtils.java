@@ -40,6 +40,7 @@ import com.intellij.openapi.vfs.*;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiManager;
+import com.intellij.psi.PsiWhiteSpace;
 import com.redhat.devtools.lsp4ij.client.features.FileUriSupport;
 import com.redhat.devtools.lsp4ij.internal.SimpleLanguageUtils;
 import com.redhat.devtools.lsp4ij.internal.StringUtils;
@@ -898,6 +899,10 @@ public class LSPIJUtils {
     private static TextRange findBestTextRangeAt(@Nullable PsiFile file, int offset) {
         PsiElement element = file != null ? file.findElementAt(Math.max(offset - 1, 0)) : null;
         if (element != null) {
+            // When element is whitespace, completion should never replace it - that's not prefix
+            if (element instanceof PsiWhiteSpace) {
+                return null;
+            }
             TextRange textRange = element.getTextRange();
             if (offset == textRange.getEndOffset()) {
                 // my.property|

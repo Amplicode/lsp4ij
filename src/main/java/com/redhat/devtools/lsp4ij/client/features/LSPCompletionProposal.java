@@ -102,7 +102,11 @@ public class LSPCompletionProposal extends LookupElement implements Pointer<LSPC
         this.editor = completionContext.getParameters().getEditor();
         this.completionContext = completionContext;
         this.completionOffset = completionContext.getParameters().getOffset();
-        this.prefixStartOffset = getPrefixStartOffset(editor.getDocument(), completionOffset);
+        this.prefixStartOffset = getPrefixStartOffset(
+            editor.getDocument(),
+            completionOffset,
+            completionFeature.excludeWhitespaceFromCompletionPrefix(completionContext.getParameters().getOriginalFile())
+        );
         this.completionFeature = completionFeature;
         putUserData(CodeCompletionHandlerBase.DIRECT_INSERTION, true);
     }
@@ -663,7 +667,7 @@ public class LSPCompletionProposal extends LookupElement implements Pointer<LSPC
     // --------------- Prefix start offset
 
 
-    private int getPrefixStartOffset(@NotNull Document document, int completionOffset) {
+    private int getPrefixStartOffset(@NotNull Document document, int completionOffset, boolean excludeWhitespace) {
         Either<TextEdit, InsertReplaceEdit> textEdit = this.item.getTextEdit();
         if (textEdit != null) {
             // case 1: text edit is defined,
@@ -673,7 +677,7 @@ public class LSPCompletionProposal extends LookupElement implements Pointer<LSPC
 
         // case 2: text edit is undefined, try to compute the prefix start offset by using insertText
         String insertText = getInsertText();
-        Integer prefixStartOffset = computePrefixStartFromInsertText(document, file, completionOffset, insertText);
+        Integer prefixStartOffset = computePrefixStartFromInsertText(document, file, completionOffset, insertText, excludeWhitespace);
         return Objects.requireNonNullElse(prefixStartOffset, completionOffset);
     }
 

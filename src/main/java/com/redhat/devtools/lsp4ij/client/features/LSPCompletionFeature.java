@@ -335,4 +335,22 @@ public class LSPCompletionFeature extends AbstractLSPDocumentFeature {
         // Default to enabled
         return true;
     }
+
+    /**
+     * Whether to exclude {@link com.intellij.psi.PsiWhiteSpace whitespace token} from completion prefix.
+     *
+     * <p>
+     * When disabled (the default), invoking a completion inside whitespace token
+     * will make this token a completion prefix, which means it will be replaced by {@code insertText}
+     * when user accept completion.
+     * When disabled, whitespace token will not be prefix, so when user accept completion,
+     * it will be just inserted at the caret, leaving whitespace as-is.
+     * </p>
+     * @param file the file
+     * @return {@code true} if {@link com.intellij.psi.PsiWhiteSpace whitespace token} should not be completion prefix
+     */
+    public boolean excludeWhitespaceFromCompletionPrefix(@NotNull PsiFile file) {
+        // Disabled by default to leave original behavior
+        return false;
+    }
 }

@@ -27,6 +27,15 @@ public class CompletionUtils {
                                                            @Nullable PsiFile file,
                                                            int completionOffset,
                                                            String insertText) {
+        return computePrefixStartFromInsertText(document, file, completionOffset, insertText, false);
+    }
+
+    @Nullable
+    public static Integer computePrefixStartFromInsertText(@NotNull Document document,
+                                                           @Nullable PsiFile file,
+                                                           int completionOffset,
+                                                           String insertText,
+                                                           boolean excludeWhitespace) {
 
         // case 2.1: first strategy, we collect word range at
         // ex :
@@ -34,7 +43,7 @@ public class CompletionUtils {
         // document= le
         // we have to return |le as prefix start offset
 
-        TextRange wordRange = LSPIJUtils.getWordRangeAt(document, file, completionOffset);
+        TextRange wordRange = LSPIJUtils.getWordRangeAt(document, file, completionOffset, excludeWhitespace);
         if (wordRange != null) {
             return wordRange.getStartOffset();
         }

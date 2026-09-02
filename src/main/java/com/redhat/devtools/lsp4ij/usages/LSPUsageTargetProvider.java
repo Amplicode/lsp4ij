@@ -143,7 +143,7 @@ public class LSPUsageTargetProvider implements UsageTargetProvider {
      */
     @NotNull
     private static UsageTarget[] getLSPTargets(@NotNull Editor editor, @NotNull PsiFile file) {
-        TextRange targetTextRange = LSPIJUtils.getWordRangeAt(editor.getDocument(), file, editor.getCaretModel().getOffset());
+        TextRange targetTextRange = LSPIJUtils.getWordRangeAt(editor.getDocument(), file, editor.getCaretModel().getOffset(), false);
         if (targetTextRange == null) {
             return UsageTarget.EMPTY_ARRAY;
         }

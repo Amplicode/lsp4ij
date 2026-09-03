@@ -874,13 +874,38 @@ public class LSPIJUtils {
     public static TextRange getWordRangeAt(@NotNull Document document,
                                            @Nullable PsiFile file,
                                            int offset) {
+        return getWordRangeAt(document, file, offset, false);
+    }
+
+    /**
+     * Returns the word range from the document at given offset and null otherwise.
+     *
+     * <code><pre>
+     *  - fo|o bar -> [foo]
+     *  - fo|o.bar() -> [foo]
+     *  - foo.b|ar() -> [bar]
+     *  - foo.bar(|) -> null
+     *  - foo  |  bar -> null
+     * </pre></code>
+     *
+     * @param document the document.
+     * @param file     the PsiFile or null otherwise.
+     * @param offset   the offset.
+     * @param excludeWhitespace if {@link PsiWhiteSpace whitespace} should not be returned
+     * @return the word range from the document at given offset and null otherwise.
+     */
+    @Nullable
+    public static TextRange getWordRangeAt(@NotNull Document document,
+                                           @Nullable PsiFile file,
+                                           int offset,
+                                           boolean excludeWhitespace) {
         if (offset > document.getTextLength()) {
             offset = document.getTextLength() - 1;
         }
         if (file != null && !SimpleLanguageUtils.isSupported(file.getLanguage())) {
             // It is not TextMate, TEXT file (since those language doesn't tokenize the file)
             // Try to use the PsiElement text range found at the given offset
-            TextRange textRange = findBestTextRangeAt(file, offset);
+            TextRange textRange = findBestTextRangeAt(file, offset, excludeWhitespace);
             if (textRange != null) {
                 return textRange;
             }
@@ -896,11 +921,11 @@ public class LSPIJUtils {
         return (start < end) ? new TextRange(start, end) : null;
     }
 
-    private static TextRange findBestTextRangeAt(@Nullable PsiFile file, int offset) {
+    private static TextRange findBestTextRangeAt(@Nullable PsiFile file, int offset, boolean excludeWhitespace) {
         PsiElement element = file != null ? file.findElementAt(Math.max(offset - 1, 0)) : null;
         if (element != null) {
-            // When element is whitespace, completion should never replace it - that's not prefix
-            if (element instanceof PsiWhiteSpace) {
+            // When element is whitespace - exclude it if we need
+            if (excludeWhitespace && element instanceof PsiWhiteSpace) {
                 return null;
             }
             TextRange textRange = element.getTextRange();

@@ -16,7 +16,6 @@ import com.intellij.codeInsight.highlighting.HighlightUsagesHandlerFactory;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.progress.ProcessCanceledException;
-import com.intellij.openapi.progress.util.ProgressIndicatorUtils;
 import com.intellij.openapi.progress.ProgressManager;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.openapi.util.registry.Registry;
@@ -42,6 +41,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 
 import static com.redhat.devtools.lsp4ij.internal.CompletableFutures.isDoneNormally;
+import static com.redhat.devtools.lsp4ij.internal.CompletableFutures.awaitWithCheckCanceled;
 
 
 /**
@@ -86,7 +86,7 @@ public class LSPHighlightUsagesHandlerFactory implements HighlightUsagesHandlerF
                 // If a write action needs priority the progress indicator is cancelled, PCE is
                 // thrown here, the read lock is released immediately, and IntelliJ reschedules
                 // this background highlighting pass once the write action completes.
-                ProgressIndicatorUtils.awaitWithCheckCanceled(highlightFuture);
+                awaitWithCheckCanceled(highlightFuture);
             } catch (ProcessCanceledException e) {
                 // Write action requested priority — don't cancel the LSP future; the cached
                 // result will be reused when the pass is rescheduled.
@@ -102,7 +102,7 @@ public class LSPHighlightUsagesHandlerFactory implements HighlightUsagesHandlerF
             }
         } else {
             try {
-                ProgressIndicatorUtils.awaitWithCheckCanceled(highlightFuture);
+                awaitWithCheckCanceled(highlightFuture);
             } catch (ProcessCanceledException e) {
                 throw e;
             } catch (CancellationException e) {

@@ -1,4 +1,4 @@
-<idea-plugin>
+<idea-plugin allow-bundled-update="true">
     <id>com.redhat.devtools.lsp4ij</id>
     <name>LSP4IJ</name>
     <version>1.0</version>

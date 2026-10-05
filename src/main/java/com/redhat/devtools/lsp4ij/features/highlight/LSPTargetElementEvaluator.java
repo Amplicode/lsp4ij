@@ -46,10 +46,9 @@ public class LSPTargetElementEvaluator extends TargetElementEvaluatorEx2 {
         // See if the view provider can provide a specific token element
         LSPSemanticTokensFileViewProvider semanticTokensFileViewProvider = LSPSemanticTokensFileViewProvider.getInstance(file);
         if (semanticTokensFileViewProvider != null) {
-            PsiElement element = semanticTokensFileViewProvider.findElementAt(offset);
-            // Only return the element if it's a specific token, not the whole-file fallback
-            // returned when semantic tokens haven't loaded yet (TextMate files have no PSI structure)
-            if (element != null && !element.getTextRange().equals(file.getTextRange())) {
+            // Only use a specific token, not the whole-file fallback (TextMate files have no PSI structure)
+            PsiElement element = semanticTokensFileViewProvider.findNarrowElementAt(offset);
+            if (element != null) {
                 return element;
             }
         }

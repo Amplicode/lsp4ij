@@ -39,4 +39,23 @@ public interface LSPSemanticTokensFileViewProvider extends FileViewProvider, LSP
                 semanticTokensFileViewProvider :
                 null;
     }
+
+    //OPEN IDE BEGIN
+    /**
+     * Returns the element at the offset like {@link #findElementAt(int)}, but only if it is narrower than the whole
+     * file. Structureless files (TextMate, plain text) have no PSI structure, so {@link #findElementAt(int)} falls back
+     * to a whole-file element (the file-level semantic token or the single leaf of the file) when no concrete semantic
+     * token is available at the offset. Callers that need the element under the caret (e.g. Find Usages targets)
+     * should use this method so that they don't treat the whole file as that element.
+     *
+     * @param offset the offset
+     * @return the element at the offset if it is narrower than the whole file; otherwise null
+     */
+    @Nullable
+    default PsiElement findNarrowElementAt(int offset) {
+        PsiElement element = findElementAt(offset);
+        PsiFile file = element != null ? element.getContainingFile() : null;
+        return (file != null) && !element.getTextRange().equals(file.getTextRange()) ? element : null;
+    }
+    //OPEN IDE END
 }

@@ -84,6 +84,10 @@ final class LSPSemanticTokensStructurelessFileViewProvider extends LSPSemanticTo
      */
     @Nullable
     private PsiElement narrowElementAt(int offset, @Nullable PsiElement superElement) {
+        // When the semantic tokens-based view provider is disabled, behave as a plain structureless file.
+        if (!isEnabled()) {
+            return superElement;
+        }
         PsiFile psiFile = getPsi(getBaseLanguage());
         // A real (sub-file) super element is fine to return as-is.
         if (superElement != null && (psiFile == null || !superElement.getTextRange().equals(psiFile.getTextRange()))) {

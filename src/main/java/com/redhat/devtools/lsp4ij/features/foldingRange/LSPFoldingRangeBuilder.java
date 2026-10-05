@@ -176,7 +176,13 @@ public class LSPFoldingRangeBuilder extends CustomFoldingBuilder {
             int end = getEndOffset(foldingRange, document);
             // The end offsets can fall a bit short, so look for the closing brace character
             if (closeBraceChar != null) {
-                end--;
+                // Some language servers return an end offset just after the closing brace, so step back onto it,
+                // but only if that brace closes this block and not a nested one
+                if ((openBraceChar != null) && (end > start) && (end <= documentLength)
+                        && (documentChars.charAt(end - 1) == closeBraceChar)
+                        && areBracesBalanced(documentChars, start, end - 1, openBraceChar, closeBraceChar)) {
+                    end--;
+                }
                 while ((end < documentLength) && (documentChars.charAt(end) != closeBraceChar)) {
                     end++;
                 }
@@ -190,6 +196,26 @@ public class LSPFoldingRangeBuilder extends CustomFoldingBuilder {
         }
 
         return textRange;
+    }
+
+    private static boolean areBracesBalanced(@NotNull CharSequence documentChars,
+                                             int start,
+                                             int end,
+                                             char openBraceChar,
+                                             char closeBraceChar) {
+        int depth = 0;
+        for (int i = start; i < end; i++) {
+            char c = documentChars.charAt(i);
+            if (c == openBraceChar) {
+                depth++;
+            } else if (c == closeBraceChar) {
+                depth--;
+                if (depth < 0) {
+                    return false;
+                }
+            }
+        }
+        return depth == 0;
     }
 
     private static int getStartOffset(@NotNull FoldingRange foldingRange, @NotNull Document document) {

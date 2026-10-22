@@ -353,4 +353,24 @@ public class LSPCompletionFeature extends AbstractLSPDocumentFeature {
         // Disabled by default to leave original behavior
         return false;
     }
+
+    /**
+     * Whether the {@code completionItem/resolve} that fills in the 'detail' of the selected lookup item is
+     * awaited in the background, inside the expensive renderer, instead of on the EDT.
+     *
+     * <p>
+     * When disabled (the default), {@code LSPCompletionProposal.getExpensiveRenderer()} waits for the
+     * resolve itself. The platform calls that method on the EDT — on every selection change in the lookup
+     * and while typing, inside the write action of the typed character — so the editor freezes for as long
+     * as the language server takes to answer: seconds per arrow key on a large file of a busy server.
+     * When enabled, it returns the renderer at once and the renderer waits for the resolve in the
+     * background, in a read action a write action cancels; the detail shows up once the server answers.
+     * </p>
+     * @param file the file
+     * @return {@code true} if the 'detail' of the selected item should be resolved off the EDT
+     */
+    public boolean resolveDetailInBackground(@NotNull PsiFile file) {
+        // Disabled by default to leave original behavior
+        return false;
+    }
 }

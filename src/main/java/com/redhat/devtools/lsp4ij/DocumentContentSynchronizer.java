@@ -19,6 +19,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.util.Alarm;
+import com.redhat.devtools.lsp4ij.client.features.DocumentTextProjection;
 import com.redhat.devtools.lsp4ij.client.features.FileUriSupport;
 import org.eclipse.lsp4j.*;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
@@ -53,6 +54,7 @@ public class DocumentContentSynchronizer implements DocumentListener, Disposable
     private final @NotNull VirtualFile file;
     private final @Nullable String documentText;
     private final @Nullable String languageId;
+    private final @Nullable DocumentTextProjection projection;
 
     private int version = 0;
     private final List<TextDocumentContentChangeEvent> changeEvents;
@@ -75,6 +77,8 @@ public class DocumentContentSynchronizer implements DocumentListener, Disposable
         this.document = document;
         this.documentText = documentText;
         this.languageId = languageId;
+        var clientFeatures = languageServerWrapper.getClientFeatures();
+        this.projection = clientFeatures.isDocumentTextProjectionSupported(file) ? clientFeatures.getDocumentTextProjection(file) : null;
 
         // Initialize LSP change events
         changeEvents = new ArrayList<>();
@@ -101,7 +105,7 @@ public class DocumentContentSynchronizer implements DocumentListener, Disposable
         // add a document buffer
         TextDocumentItem textDocument = new TextDocumentItem();
         textDocument.setUri(this.fileUri);
-        textDocument.setText(documentText != null ? documentText : document.getText());
+        textDocument.setText(textToSend(documentText != null ? documentText : document.getText()));
 
         @NotNull String languageId = this.languageId != null ? this.languageId :
                 languageServerWrapper.getServerDefinition().getLanguageId(file, languageServerWrapper.getProject());
@@ -226,7 +230,7 @@ public class DocumentContentSynchronizer implements DocumentListener, Disposable
                 return null;
             case Full: {
                 TextDocumentContentChangeEvent changeEvent = new TextDocumentContentChangeEvent();
-                changeEvent.setText(event.getDocument().getText());
+                changeEvent.setText(textToSend(event.getDocument().getText()));
                 return changeEvent;
             }
             case Incremental: {
@@ -263,7 +267,7 @@ public class DocumentContentSynchronizer implements DocumentListener, Disposable
             TextDocumentIdentifier identifier = new TextDocumentIdentifier(fileUri);
             var saveOptions = syncOptions.getSave();
             boolean includedText = saveOptions.isRight() && saveOptions.getRight().getIncludeText() != null && saveOptions.getRight().getIncludeText();
-            DidSaveTextDocumentParams params = new DidSaveTextDocumentParams(identifier, includedText ? document.getText() : null);
+            DidSaveTextDocumentParams params = new DidSaveTextDocumentParams(identifier, includedText ? textToSend(document.getText()) : null);
             ls.getTextDocumentService().didSave(params);
             return ls;
         });
@@ -299,7 +303,20 @@ public class DocumentContentSynchronizer implements DocumentListener, Disposable
      * @return the text document sync kind capabilities of the server and {@link TextDocumentSyncKind#Full} otherwise.
      */
     private TextDocumentSyncKind getTextDocumentSyncKind() {
-        return syncOptions.getChange();
+        TextDocumentSyncKind syncKind = syncOptions.getChange();
+        // An incremental edit of the document is not an edit of its projection.
+        if (projection != null && syncKind == TextDocumentSyncKind.Incremental) {
+            return TextDocumentSyncKind.Full;
+        }
+        return syncKind;
+    }
+
+    /**
+     * Returns the text the language server is shown for the given document text: its projection when the
+     * client features project this file, the text itself otherwise.
+     */
+    private @NotNull String textToSend(@NotNull String text) {
+        return projection != null ? projection.project(text) : text;
     }
 
     /**

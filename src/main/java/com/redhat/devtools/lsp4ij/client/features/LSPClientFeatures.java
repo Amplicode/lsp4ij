@@ -203,6 +203,37 @@ public class LSPClientFeatures implements Disposable, FileUriSupport {
     public void initializeParams(@NotNull InitializeParams initializeParams) {
     }
 
+    /**
+     * Overrides this method to show the language server another text than the document's own for the
+     * given file — the code it embeds in the server's language, everything else blanked out.
+     * Asked once, when the file is connected to the language server, and only when
+     * {@link #isDocumentTextProjectionSupported(VirtualFile)} is enabled.
+     *
+     * @param file the virtual file.
+     * @return the projection of the file's text, or null to show the server the document as it is.
+     * @see DocumentTextProjection
+     */
+    public @Nullable DocumentTextProjection getDocumentTextProjection(@NotNull VirtualFile file) {
+        return null;
+    }
+
+    /**
+     * Whether the language server may be shown a projection of the given file instead of its text.
+     *
+     * <p>
+     * When disabled (the default), {@link #getDocumentTextProjection(VirtualFile)} is never asked and the
+     * document is synchronized exactly as without projections: its own text, with the sync kind the
+     * server declares.
+     * </p>
+     *
+     * @param file the virtual file.
+     * @return true if {@link #getDocumentTextProjection(VirtualFile)} should be asked for the file; otherwise false
+     */
+    public boolean isDocumentTextProjectionSupported(@NotNull VirtualFile file) {
+        // Default to disabled
+        return false;
+    }
+
     public LSPClientFeatures setFileUriSupport(FileUriSupport fileUriSupport) {
         this.fileUriSupport = fileUriSupport;
         return this;

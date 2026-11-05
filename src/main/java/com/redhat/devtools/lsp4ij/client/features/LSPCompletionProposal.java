@@ -403,9 +403,6 @@ public class LSPCompletionProposal extends LookupElement implements Pointer<LSPC
 
     @Override
     public @Nullable LookupElementRenderer<? extends LookupElement> getExpensiveRenderer() {
-        if (completionFeature.resolveDetailInBackground(file)) {
-            return getExpensiveRendererResolvingInBackground();
-        }
         if (!isSelectedCompletionItem()) {
             // The lookup item is not selected ignore it
             return null;
@@ -435,52 +432,6 @@ public class LSPCompletionProposal extends LookupElement implements Pointer<LSPC
             item.setDetail("");
         }
         return null;
-    }
-
-    /**
-     * {@link #getExpensiveRenderer()} when {@link LSPCompletionFeature#resolveDetailInBackground(PsiFile)}
-     * is on: a renderer that resolves the LSP completion item 'detail' when the item is selected and the
-     * detail is missing.
-     * <p>
-     * The resolve happens in the renderer, never here. The platform calls this method on the EDT only
-     * to learn whether there is an expensive renderer ({@code LookupCellRenderer.updateItemPresentation}),
-     * and it does so on every selection change — the {@code LSPLookupManagerListener} of this plugin
-     * schedules an item update for each arrow key — and while typing, inside the write action of the
-     * typed character. Waiting for {@code completionItem/resolve} here froze the editor for as long as
-     * the language server took to answer: on a large TypeScript file, seconds per arrow key, since
-     * tsserver queues the resolve behind code lens and semantic token requests.
-     * <p>
-     * The renderer runs in the background inside a cancellable read action
-     * ({@code AsyncRendering.scheduleRendering}), so a write action cancels the wait instead of
-     * waiting for it; the resolve future is kept and the next rendering picks its result up.
-     */
-    private @Nullable LookupElementRenderer<? extends LookupElement> getExpensiveRendererResolvingInBackground() {
-        if (!isSelectedCompletionItem()) {
-            // The lookup item is not selected ignore it
-            return null;
-        }
-        // Here the IJ lookup item is selected.
-        if (!needToResolveCompletionDetail()) {
-            if (item.getDetail() == null) {
-                // The detail cannot be resolved, set empty string to avoid trying to resolve again the completion item
-                item.setDetail("");
-            }
-            return null;
-        }
-        return new LookupElementRenderer<LookupElement>() {
-            @Override
-            public void renderElement(LookupElement element, LookupElementPresentation presentation) {
-                // The LSP completion item 'detail' is not filled, resolve it here, off the EDT.
-                CompletionItem resolved = getResolvedCompletionItem();
-                if (resolved != null && resolved.getDetail() != null) {
-                    item.setDetail(resolved.getDetail());
-                } else if (item.getDetail() == null) {
-                    // The detail cannot be resolved, set empty string to avoid trying to resolve again the completion item
-                    item.setDetail("");
-                }
-                LSPCompletionProposal.this.renderElement(presentation);
-            }
-        };
     }
 
     /**

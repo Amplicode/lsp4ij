@@ -403,80 +403,35 @@ public class LSPCompletionProposal extends LookupElement implements Pointer<LSPC
 
     @Override
     public @Nullable LookupElementRenderer<? extends LookupElement> getExpensiveRenderer() {
-        if (completionFeature.resolveDetailInBackground(file)) {
-            return getExpensiveRendererResolvingInBackground();
-        }
         if (!isSelectedCompletionItem()) {
             // The lookup item is not selected ignore it
             return null;
         }
         // Here the IJ lookup item is selected.
         if (needToResolveCompletionDetail()) {
-            // The LSP completion item 'detail' is not filled, try to resolve it
-            // inside getExpensiveRenderer() which should not impact performance.
-            CompletionItem resolved = getResolvedCompletionItem();
-            if (resolved != null && resolved.getDetail() != null) {
-                item.setDetail(resolved.getDetail());
-
-                return new LookupElementRenderer<LookupElement>() {
-                    @Override
-                    public void renderElement(LookupElement element, LookupElementPresentation presentation) {
-                        LSPCompletionProposal.this.renderElement(presentation);
+            // The LSP completion item 'detail' is not filled, resolve it in the returned renderer.
+            // IntelliJ calls getExpensiveRenderer() on the EDT, possibly inside the write action of a typed
+            // character, and only the renderer runs in the background, in a read action that a pending
+            // write action cancels: waiting for the language server here would block the EDT on it.
+            return new LookupElementRenderer<LookupElement>() {
+                @Override
+                public void renderElement(LookupElement element, LookupElementPresentation presentation) {
+                    CompletionItem resolved = getResolvedCompletionItem();
+                    if (resolved != null && resolved.getDetail() != null) {
+                        item.setDetail(resolved.getDetail());
+                    } else if (item.getDetail() == null) {
+                        // The detail cannot be resolved, set empty string to avoid trying to resolve again the completion item
+                        item.setDetail("");
                     }
-                };
-            }
+                    LSPCompletionProposal.this.renderElement(presentation);
+                }
+            };
         }
         if (item.getDetail() == null) {
             // The detail cannot be resolved, set empty string to avoid trying to resolve again the completion item
             item.setDetail("");
         }
         return null;
-    }
-
-    /**
-     * {@link #getExpensiveRenderer()} when {@link LSPCompletionFeature#resolveDetailInBackground(PsiFile)}
-     * is on: a renderer that resolves the LSP completion item 'detail' when the item is selected and the
-     * detail is missing.
-     * <p>
-     * The resolve happens in the renderer, never here. The platform calls this method on the EDT only
-     * to learn whether there is an expensive renderer ({@code LookupCellRenderer.updateItemPresentation}),
-     * and it does so on every selection change — the {@code LSPLookupManagerListener} of this plugin
-     * schedules an item update for each arrow key — and while typing, inside the write action of the
-     * typed character. Waiting for {@code completionItem/resolve} here froze the editor for as long as
-     * the language server took to answer: on a large TypeScript file, seconds per arrow key, since
-     * tsserver queues the resolve behind code lens and semantic token requests.
-     * <p>
-     * The renderer runs in the background inside a cancellable read action
-     * ({@code AsyncRendering.scheduleRendering}), so a write action cancels the wait instead of
-     * waiting for it; the resolve future is kept and the next rendering picks its result up.
-     */
-    private @Nullable LookupElementRenderer<? extends LookupElement> getExpensiveRendererResolvingInBackground() {
-        if (!isSelectedCompletionItem()) {
-            // The lookup item is not selected ignore it
-            return null;
-        }
-        // Here the IJ lookup item is selected.
-        if (!needToResolveCompletionDetail()) {
-            if (item.getDetail() == null) {
-                // The detail cannot be resolved, set empty string to avoid trying to resolve again the completion item
-                item.setDetail("");
-            }
-            return null;
-        }
-        return new LookupElementRenderer<LookupElement>() {
-            @Override
-            public void renderElement(LookupElement element, LookupElementPresentation presentation) {
-                // The LSP completion item 'detail' is not filled, resolve it here, off the EDT.
-                CompletionItem resolved = getResolvedCompletionItem();
-                if (resolved != null && resolved.getDetail() != null) {
-                    item.setDetail(resolved.getDetail());
-                } else if (item.getDetail() == null) {
-                    // The detail cannot be resolved, set empty string to avoid trying to resolve again the completion item
-                    item.setDetail("");
-                }
-                LSPCompletionProposal.this.renderElement(presentation);
-            }
-        };
     }
 
     /**
@@ -673,7 +628,7 @@ public class LSPCompletionProposal extends LookupElement implements Pointer<LSPC
      * @return the resolved completion item and null otherwise.
      */
     private CompletionItem getResolvedCompletionItem() {
-        CompletableFuture<CompletionItem> future = resolveCompletionItem();
+        var future = getResolvedCompletionItemFuture();
         try {
             awaitWithCheckCanceled(future);
         } catch (ProcessCanceledException e) {
@@ -690,10 +645,12 @@ public class LSPCompletionProposal extends LookupElement implements Pointer<LSPC
     }
 
     /**
-     * The one {@code completionItem/resolve} request of this item, sent on first use. Synchronized
-     * because the expensive renderer asks from a background thread while the EDT may ask on insert.
+     * Returns the LSP 'completionItem/resolve' request of the completion item, sent on the first call.
+     * The EDT (apply) and background threads (expensive renderer, documentation) can both reach it.
+     *
+     * @return the LSP 'completionItem/resolve' request of the completion item.
      */
-    private synchronized CompletableFuture<CompletionItem> resolveCompletionItem() {
+    private synchronized CompletableFuture<CompletionItem> getResolvedCompletionItemFuture() {
         if (resolvedCompletionItemFuture == null) {
             resolvedCompletionItemFuture = completionContext.getLanguageServer().getServer()
                     .getTextDocumentService()

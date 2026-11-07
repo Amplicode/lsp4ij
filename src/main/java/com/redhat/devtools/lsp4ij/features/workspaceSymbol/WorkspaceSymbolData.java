@@ -23,8 +23,10 @@ import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiManager;
 import com.intellij.psi.impl.light.LightElement;
+import com.intellij.psi.search.GlobalSearchScope;
 import com.redhat.devtools.lsp4ij.LSPIJUtils;
 import com.redhat.devtools.lsp4ij.client.features.FileUriSupport;
+import com.redhat.devtools.lsp4ij.client.features.LSPWorkspaceSymbolFeature;
 import com.redhat.devtools.lsp4ij.ui.IconMapper;
 import org.eclipse.lsp4j.Location;
 import org.eclipse.lsp4j.Position;
@@ -52,6 +54,7 @@ public class WorkspaceSymbolData extends LightElement implements NavigationItem,
     private @Nullable String locationString;
     private @Nullable TextRange textRange;
     private boolean filterBySearchScope = true;
+    private @Nullable LSPWorkspaceSymbolFeature workspaceSymbolFeature;
 
 
     public WorkspaceSymbolData(String name,
@@ -84,6 +87,13 @@ public class WorkspaceSymbolData extends LightElement implements NavigationItem,
 
     @Override
     public @NotNull Language getLanguage() {
+        var file = getFile();
+        if (file != null && workspaceSymbolFeature != null) {
+            var language = workspaceSymbolFeature.getSymbolLanguage(file);
+            if (language != null) {
+                return language;
+            }
+        }
         var psiFile = getPsiFile();
         if (psiFile != null) {
             return psiFile.getLanguage();
@@ -166,6 +176,29 @@ public class WorkspaceSymbolData extends LightElement implements NavigationItem,
 
     public void setFilterBySearchScope(boolean filterBySearchScope) {
         this.filterBySearchScope = filterBySearchScope;
+    }
+
+    /**
+     * Sets the workspace symbol feature of the server which returned this symbol, which decides its
+     * language ({@link LSPWorkspaceSymbolFeature#getSymbolLanguage}) and the scopes it is shown for
+     * ({@link LSPWorkspaceSymbolFeature#acceptFile}).
+     */
+    public void setWorkspaceSymbolFeature(@Nullable LSPWorkspaceSymbolFeature workspaceSymbolFeature) {
+        this.workspaceSymbolFeature = workspaceSymbolFeature;
+    }
+
+    /**
+     * Returns {@code true} if this symbol is shown for the given search scope. Must be called in a read action.
+     */
+    public boolean isAcceptedBy(@NotNull GlobalSearchScope scope) {
+        var file = getFile();
+        if (file == null) {
+            return false;
+        }
+        if (workspaceSymbolFeature != null) {
+            return workspaceSymbolFeature.acceptFile(file, scope);
+        }
+        return !filterBySearchScope || scope.accept(file);
     }
 
     @Override

@@ -86,9 +86,8 @@ public class LSPWorkspaceSymbolSupport extends AbstractLSPWorkspaceFeatureSuppor
                         // workspace/symbol may return null
                         return null;
                     }
-                    boolean filterBySearchScope = languageServer.getClientFeatures()
-                            .getWorkspaceSymbolFeature()
-                            .filterBySearchScope();
+                    var workspaceSymbolFeature = languageServer.getClientFeatures().getWorkspaceSymbolFeature();
+                    boolean filterBySearchScope = workspaceSymbolFeature.filterBySearchScope();
                     List<WorkspaceSymbolData> items = new ArrayList<>();
                     if (symbols.isLeft()) {
                         List<? extends SymbolInformation> s = symbols.getLeft();
@@ -97,6 +96,7 @@ public class LSPWorkspaceSymbolSupport extends AbstractLSPWorkspaceFeatureSuppor
                                 WorkspaceSymbolData item = new WorkspaceSymbolData(
                                         si.getName(), si.getKind(), si.getLocation(), languageServer.getClientFeatures(), project);
                                 item.setFilterBySearchScope(filterBySearchScope);
+                                item.setWorkspaceSymbolFeature(workspaceSymbolFeature);
                                 items.add(item);
                             }
                         }
@@ -106,6 +106,7 @@ public class LSPWorkspaceSymbolSupport extends AbstractLSPWorkspaceFeatureSuppor
                             if (params.accept(si)) {
                                 WorkspaceSymbolData item = createItem(si, languageServer.getClientFeatures(),project);
                                 item.setFilterBySearchScope(filterBySearchScope);
+                                item.setWorkspaceSymbolFeature(workspaceSymbolFeature);
                                 items.add(item);
                             }
                         }

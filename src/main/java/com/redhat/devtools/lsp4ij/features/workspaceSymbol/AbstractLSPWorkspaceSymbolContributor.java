@@ -53,7 +53,7 @@ abstract class AbstractLSPWorkspaceSymbolContributor implements ChooseByNameCont
             if (items != null) {
                 items.stream()
                         .filter(data -> data.getFile() != null
-                                && (!data.isFilterBySearchScope() || runCancellableReadAction(() -> scope.accept(data.getFile()), project)))
+                                && runCancellableReadAction(() -> data.isAcceptedBy(scope), project))
                         .map(NavigationItem::getName)
                         .forEach(processor::process);
             }
@@ -72,7 +72,7 @@ abstract class AbstractLSPWorkspaceSymbolContributor implements ChooseByNameCont
                 items
                         .stream()
                         .filter(data -> data.getFile() != null
-                                && (!data.isFilterBySearchScope() || runCancellableReadAction(() -> parameters.getSearchScope().accept(data.getFile()), parameters.getProject())))
+                                && runCancellableReadAction(() -> data.isAcceptedBy(parameters.getSearchScope()), parameters.getProject()))
                         .forEach(processor::process);
             }
         }

@@ -10,9 +10,13 @@
  ******************************************************************************/
 package com.redhat.devtools.lsp4ij.client.features;
 
+import com.intellij.lang.Language;
+import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.psi.search.GlobalSearchScope;
 import com.redhat.devtools.lsp4ij.ServerStatus;
 import org.eclipse.lsp4j.ServerCapabilities;
 import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import static com.redhat.devtools.lsp4ij.server.capabilities.TextDocumentServerCapabilityRegistry.hasCapability;
@@ -70,5 +74,37 @@ public class LSPWorkspaceSymbolFeature extends AbstractLSPWorkspaceFeature {
      */
     public boolean filterBySearchScope() {
         return true;
+    }
+
+    /**
+     * Returns the language reported for symbols declared in the given file, which is what the language
+     * filter of Go To Class / Go To Symbol matches against.
+     *
+     * By default it is the language of the file's PSI. A server whose files are TextMate-backed would
+     * otherwise report every symbol as "TextMate", so the only way to keep its symbols would be to keep
+     * every TextMate language; such a server can name the language its files actually hold.
+     *
+     * @param file the file declaring the symbol.
+     * @return the language to report, or {@code null} (default) for the language of the file's PSI.
+     */
+    public @Nullable Language getSymbolLanguage(@NotNull VirtualFile file) {
+        return null;
+    }
+
+    /**
+     * Determines whether a symbol declared in the given file is shown for the given search scope (for
+     * example "Project Files" or "All Places").
+     *
+     * The default keeps the behavior of {@link #filterBySearchScope()}: the symbol is shown when the scope
+     * contains its file, or always when that filter is off. A server returning symbols from files outside
+     * every scope (an excluded {@code node_modules}) can accept them only for scopes that include
+     * libraries, so a project-only scope stays project-only.
+     *
+     * @param file  the file declaring the symbol.
+     * @param scope the search scope of the current search.
+     * @return {@code true} to show the symbol.
+     */
+    public boolean acceptFile(@NotNull VirtualFile file, @NotNull GlobalSearchScope scope) {
+        return !filterBySearchScope() || scope.accept(file);
     }
 }
